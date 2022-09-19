@@ -1,10 +1,11 @@
 #pragma once
 
-#include "object.hpp"
-#include <metaSMT/frontend/Logic.hpp>
-#include <metaSMT/tags/Cardinality.hpp>
 #include <boost/mpl/assert.hpp>
 #include <boost/mpl/contains.hpp>
+#include <metaSMT/frontend/Logic.hpp>
+#include <metaSMT/tags/Cardinality.hpp>
+
+#include "object.hpp"
 
 namespace metaSMT {
   namespace cardinality {
@@ -55,31 +56,29 @@ namespace metaSMT {
        *
        * Precondition: ps.size > 0 && cardinality > 0 && ps.size() > cardinality
        */
-      template < typename Context >
+      template <typename Context>
       typename Context::result_type formula(Context &ctx, unsigned n, typename Context::result_type r) {
         using namespace metaSMT::logic;
         unsigned const magic_number = 0;
-        if ( n > magic_number ) {
+        if (n > magic_number) {
           predicate p = new_variable();
-          metaSMT::assertion( ctx, logic::equal(p, r) );
+          metaSMT::assertion(ctx, logic::equal(p, r));
           return evaluate(ctx, p);
-        }
-        else {
+        } else {
           return r;
         }
       }
 
       template <typename Context, typename Boolean, typename LT_Expr, typename EQ_Expr, typename GT_Expr>
-      typename Context::result_type
-      cardinality_any(Context &ctx, std::vector<Boolean> const &ps, unsigned cardinality,
-                      LT_Expr lt, EQ_Expr eq, GT_Expr gt) {
+      typename Context::result_type cardinality_any(Context &ctx, std::vector<Boolean> const &ps, unsigned cardinality,
+                                                    LT_Expr lt, EQ_Expr eq, GT_Expr gt) {
         using namespace metaSMT::logic;
         assert(ps.size() > 0 && "Cardinality constraint requires at least one input variable");
         assert(cardinality > 0 && "Unsatisfied precondition for tableau construction");
 
-        assert( ps.size() > cardinality );
+        assert(ps.size() > cardinality);
 
-        unsigned const rail_size = cardinality+1;
+        unsigned const rail_size = cardinality + 1;
         std::vector<typename Context::result_type> rails[2];
         rails[0].resize(rail_size);
         rails[1].resize(rail_size);
@@ -87,29 +86,30 @@ namespace metaSMT {
         for (unsigned v = 0; v < ps.size() - cardinality + 1; ++v) {
           for (unsigned u = 0; u < cardinality + 1; ++u) {
             if (u == 0 && v == 0) {
-              rails[0][0] = formula(ctx, u+v, evaluate(ctx, eq));
+              rails[0][0] = formula(ctx, u + v, evaluate(ctx, eq));
             } else if (u == 0) {
-              rails[v%2][0] = formula(ctx, u+v, evaluate(ctx, Ite(evaluate(ctx, ps[v-1]), gt, rails[(v-1)%2][0]))); 
+              rails[v % 2][0] =
+                  formula(ctx, u + v, evaluate(ctx, Ite(evaluate(ctx, ps[v - 1]), gt, rails[(v - 1) % 2][0])));
             } else if (v == 0) {
-              rails[0][u] = formula(ctx, u+v, evaluate(ctx, Ite(evaluate(ctx, ps[u-1]), rails[0][u-1], lt)));
+              rails[0][u] = formula(ctx, u + v, evaluate(ctx, Ite(evaluate(ctx, ps[u - 1]), rails[0][u - 1], lt)));
             } else {
-              rails[v%2][u] = formula(ctx, u+v, evaluate(ctx, Ite(ps[u+v-1], rails[v%2][u-1], rails[(v-1)%2][u])));
+              rails[v % 2][u] =
+                  formula(ctx, u + v, evaluate(ctx, Ite(ps[u + v - 1], rails[v % 2][u - 1], rails[(v - 1) % 2][u])));
             }
           }
         }
-        return rails[(ps.size() - cardinality)%2][cardinality];
+        return rails[(ps.size() - cardinality) % 2][cardinality];
       }
 
-      template < typename Context, typename Tag, typename Boolean >
-      typename Context::result_type
-      cardinality(Context &, cardinality::Cardinality< Tag, Boolean > const &) {
+      template <typename Context, typename Tag, typename Boolean>
+      typename Context::result_type cardinality(Context &, cardinality::Cardinality<Tag, Boolean> const &) {
         /** error: unknown tag **/
-        BOOST_MPL_ASSERT_NOT( (boost::mpl::contains<cardtags::Cardinality_Tags, Tag>) );
+        BOOST_MPL_ASSERT_NOT((boost::mpl::contains<cardtags::Cardinality_Tags, Tag>));
       }
 
-      template < typename Context, typename Boolean >
-      typename Context::result_type
-      cardinality(Context &ctx, cardinality::Cardinality<cardtags::eq_tag, Boolean> const &c) {
+      template <typename Context, typename Boolean>
+      typename Context::result_type cardinality(Context &ctx,
+                                                cardinality::Cardinality<cardtags::eq_tag, Boolean> const &c) {
         std::vector<Boolean> const &ps = c.ps;
         unsigned const cardinality = c.cardinality;
 
@@ -118,9 +118,9 @@ namespace metaSMT {
         return cardinality_any(ctx, ps, cardinality, logic::False, logic::True, logic::False);
       }
 
-      template < typename Context, typename Boolean >
-      typename Context::result_type
-      cardinality(Context &ctx, cardinality::Cardinality<cardtags::lt_tag, Boolean> const &c) {
+      template <typename Context, typename Boolean>
+      typename Context::result_type cardinality(Context &ctx,
+                                                cardinality::Cardinality<cardtags::lt_tag, Boolean> const &c) {
         std::vector<Boolean> const &ps = c.ps;
         unsigned const cardinality = c.cardinality;
 
@@ -128,39 +128,37 @@ namespace metaSMT {
         return evaluate(ctx, logic::Not(cardinality_geq(ctx, ps, cardinality)));
       }
 
-      template < typename Context, typename Boolean >
-      typename Context::result_type
-      cardinality(Context &ctx, cardinality::Cardinality<cardtags::le_tag, Boolean> const &c) {
+      template <typename Context, typename Boolean>
+      typename Context::result_type cardinality(Context &ctx,
+                                                cardinality::Cardinality<cardtags::le_tag, Boolean> const &c) {
         std::vector<Boolean> const &ps = c.ps;
         unsigned const cardinality = c.cardinality;
 
         assert(ps.size() > 0 && "Lower equal cardinality constraint requires at least one input variable");
 
-
         return cardinality_any(ctx, ps, cardinality, logic::True, logic::True, logic::False);
       }
 
-      template < typename Context, typename Boolean >
-      typename Context::result_type
-      cardinality(Context &ctx, cardinality::Cardinality<cardtags::ge_tag, Boolean> const &c) {
+      template <typename Context, typename Boolean>
+      typename Context::result_type cardinality(Context &ctx,
+                                                cardinality::Cardinality<cardtags::ge_tag, Boolean> const &c) {
         std::vector<Boolean> const &ps = c.ps;
         unsigned const cardinality = c.cardinality;
         assert(cardinality != 0);
         assert(ps.size() > 0 && "Greater equal cardinality constraint requires at least one input variable");
 
-
         return cardinality_any(ctx, ps, cardinality, logic::False, logic::True, logic::True);
       }
 
-      template < typename Context, typename Boolean >
-      typename Context::result_type
-      cardinality(Context &ctx, cardinality::Cardinality<cardtags::gt_tag, Boolean> const &c) {
+      template <typename Context, typename Boolean>
+      typename Context::result_type cardinality(Context &ctx,
+                                                cardinality::Cardinality<cardtags::gt_tag, Boolean> const &c) {
         std::vector<Boolean> const &ps = c.ps;
         unsigned const cardinality = c.cardinality;
 
         assert(ps.size() > 0 && "Greater than cardinality constraint requires at least one input variable");
         return evaluate(ctx, logic::Not(cardinality_leq(ctx, ps, cardinality)));
       }
-    } // bdd
-  } // cardinality
-} // metaSMT
+    }  // namespace bdd
+  }    // namespace cardinality
+}  // namespace metaSMT

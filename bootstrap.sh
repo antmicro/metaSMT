@@ -116,7 +116,7 @@ if [ -z "$BOOST_ROOT" ]; then
   export DEPS_BOOST=$BOOST
 fi
 
-if ! cd dependencies; then 
+if ! cd dependencies; then
     echo 'Missing "dependencies" directory. Please refer to the README.md for more details.'
     exit 2
 fi
@@ -131,7 +131,7 @@ fi
   echo "building dependencies $REQUIRES failed."
   exit 3
 }
-cd $BUILD_DIR && 
+cd $BUILD_DIR &&
 
 PREFIX_PATH=$(echo .$REQUIRES| sed "s@[ ^] *@;$DEPS/@g")
 

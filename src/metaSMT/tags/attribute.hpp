@@ -17,6 +17,5 @@ namespace metaSMT {
 
     // special attribute for cardinality
     struct nary {};
-  } // attr
-} // metaSMT
-
+  }  // namespace attr
+}  // namespace metaSMT

@@ -52,8 +52,8 @@ include(cmake/build_type.cmake)
 include(cmake/default_compliler_flags.cmake)
 include(cmake/config_file.cmake)
 
-###  
-# Options to force disable certain solvers. 
+###
+# Options to force disable certain solvers.
 # set all solvers to "on" with good support and experimental or
 # work in progress to "off"
 ###
@@ -73,7 +73,7 @@ option(metaSMT_USE_CW         "try to use clause writers" on)
 option(metaSMT_DOC_Doxygen    "try to build doxygen documentation" off)
 option(metaSMT_ENABLE_TESTS   "build tests (recommended)" on)
 
-set(metaSMT_CONFIG_DIR "share/metaSMT" CACHE PATH 
+set(metaSMT_CONFIG_DIR "share/metaSMT" CACHE PATH
   "where to install CMake and Make Config files")
 
 if ( NOT TIMEOUT )
@@ -147,7 +147,7 @@ endif ()
 set_package_info(CUDD "binary decision diagrams")
 
 if (metaSMT_USE_Aiger)
-  find_package(Aiger QUIET) 
+  find_package(Aiger QUIET)
   list(APPEND Aiger_LIBRARIES Aiger)
 else ()
   set(Aiger_FOUND 0)

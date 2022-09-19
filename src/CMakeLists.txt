@@ -1,6 +1,6 @@
 
 add_subdirectory(lib)
-install(DIRECTORY metaSMT 
+install(DIRECTORY metaSMT
   DESTINATION include/
   FILES_MATCHING PATTERN "*.hpp"
 )

@@ -7,31 +7,28 @@ namespace metaSMT {
   namespace type {
 
     struct BitVector {
-
       unsigned width;
 
       BitVector() {}
 
-      BitVector(unsigned w)
-        : width(w)
-      {}
+      BitVector(unsigned w) : width(w) {}
 
-      template<typename STREAM> 
-      friend STREAM & operator<< (STREAM & out, BitVector const & self) \
-      {  return (out << "BitVector [" << self.width <<"]"); }
-
+      template <typename STREAM>
+      friend STREAM& operator<<(STREAM& out, BitVector const& self) {
+        return (out << "BitVector [" << self.width << "]");
+      }
     };
 
     /** equality of BitVector Types **/
     template <typename T>
-    typename boost::enable_if< boost::is_same<BitVector, T>, bool>::type
-    operator== (BitVector const & a , T const & b)  \
-    {  return a.width==b.width; }
+    typename boost::enable_if<boost::is_same<BitVector, T>, bool>::type operator==(BitVector const& a, T const& b) {
+      return a.width == b.width;
+    }
 
     template <typename T>
-    typename boost::disable_if< boost::is_same<BitVector, T>, bool>::type
-    operator== (BitVector const & , T const & )  \
-    {  return false; }
+    typename boost::disable_if<boost::is_same<BitVector, T>, bool>::type operator==(BitVector const&, T const&) {
+      return false;
+    }
 
-  } /* type */
-} /* metaSMT */
+  }  // namespace type
+}  // namespace metaSMT

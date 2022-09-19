@@ -1,0 +1,5 @@
+BasedOnStyle: Google
+ColumnLimit: 120
+NamespaceIndentation: All
+# Prevent breaking doxygen
+CommentPragmas: '^\*|^/|^!'

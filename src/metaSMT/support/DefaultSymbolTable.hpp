@@ -9,6 +9,5 @@ namespace metaSMT {
       sprintf(buf, "var_%u", id);
       return buf;
     }
-  } // support
-} // metaSMT
-
+  }  // namespace support
+}  // namespace metaSMT

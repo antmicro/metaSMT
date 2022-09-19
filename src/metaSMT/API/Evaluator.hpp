@@ -24,8 +24,7 @@ namespace metaSMT {
    * WARNING: Note that specializations of Evaluator must be placed
    *  into the namespace metaSMT.
    */
-  template < typename Tag >
-  struct Evaluator : public boost::mpl::false_
-  {}; // evaluator
+  template <typename Tag>
+  struct Evaluator : public boost::mpl::false_ {};  // evaluator
   /**@}*/
-} // metaSMT
+}  // namespace metaSMT
