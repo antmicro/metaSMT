@@ -36,10 +36,9 @@
 #undef _BACKWARD_BACKWARD_WARNING_H
 #endif
 
-#include <boost/any.hpp>
-#include <boost/mpl/map/map40.hpp>
-#include <boost/tuple/tuple.hpp>
+#include <any>
 #include <list>
+#include <tuple>
 
 namespace metaSMT {
   namespace solver {
@@ -54,12 +53,12 @@ namespace metaSMT {
      */
     class CVC4 {
      private:
-      typedef boost::tuple<uint64_t, unsigned> bvuint_tuple;
-      typedef boost::tuple<int64_t, unsigned> bvsint_tuple;
+      typedef std::tuple<uint64_t, unsigned> bvuint_tuple;
+      typedef std::tuple<int64_t, unsigned> bvsint_tuple;
 
      public:
       typedef ::CVC4::Expr result_type;
-      typedef std::list< ::CVC4::Expr> Exprs;
+      typedef std::list<::CVC4::Expr> Exprs;
 
       CVC4() : exprManager_(), engine_(&exprManager_), isPushed_(false) {
         engine_.setOption("incremental", true);
@@ -69,7 +68,7 @@ namespace metaSMT {
 
       ~CVC4() {}
 
-      result_type operator()(arraytags::array_var_tag const &var, boost::any const &) {
+      result_type operator()(arraytags::array_var_tag const &var, std::any const &) {
         if (var.id == 0) {
           throw std::runtime_error("uninitialized array used");
         }
@@ -113,20 +112,20 @@ namespace metaSMT {
           return value.getConst<bool>();
 
         } else if (type.isBitVector()) {
-          ::CVC4::BitVector bvValue = value.getConst< ::CVC4::BitVector>();
+          ::CVC4::BitVector bvValue = value.getConst<::CVC4::BitVector>();
           return bvValue.toString();
         }
         return result_wrapper(false);
       }
 
       // predtags
-      result_type operator()(predtags::var_tag const &, boost::any) {
+      result_type operator()(predtags::var_tag const &, std::any) {
         return exprManager_.mkVar(exprManager_.booleanType());
       }
 
-      result_type operator()(predtags::false_tag, boost::any) { return exprManager_.mkConst(false); }
+      result_type operator()(predtags::false_tag, std::any) { return exprManager_.mkConst(false); }
 
-      result_type operator()(predtags::true_tag, boost::any) { return exprManager_.mkConst(true); }
+      result_type operator()(predtags::true_tag, std::any) { return exprManager_.mkConst(true); }
 
       result_type operator()(predtags::not_tag, result_type e) { return exprManager_.mkExpr(::CVC4::kind::NOT, e); }
 
@@ -135,38 +134,38 @@ namespace metaSMT {
       }
 
       // bvtags
-      result_type operator()(bvtags::var_tag const &var, boost::any) {
+      result_type operator()(bvtags::var_tag const &var, std::any) {
         assert(var.width != 0);
         ::CVC4::Type bv_ty = exprManager_.mkBitVectorType(var.width);
         return exprManager_.mkVar(bv_ty);
       }
 
-      result_type operator()(bvtags::bit0_tag, boost::any) { return exprManager_.mkConst(::CVC4::BitVector(1u, 0u)); }
+      result_type operator()(bvtags::bit0_tag, std::any) { return exprManager_.mkConst(::CVC4::BitVector(1u, 0u)); }
 
-      result_type operator()(bvtags::bit1_tag, boost::any) { return exprManager_.mkConst(::CVC4::BitVector(1u, 1u)); }
+      result_type operator()(bvtags::bit1_tag, std::any) { return exprManager_.mkConst(::CVC4::BitVector(1u, 1u)); }
 
-      result_type operator()(bvtags::bvuint_tag, boost::any arg) {
+      result_type operator()(bvtags::bvuint_tag, std::any arg) {
         uint64_t value;
         unsigned width;
-        boost::tie(value, width) = boost::any_cast<bvuint_tuple>(arg);
+        std::tie(value, width) = std::any_cast<bvuint_tuple>(arg);
         return exprManager_.mkConst(::CVC4::BitVector(width, value));
       }
 
-      result_type operator()(bvtags::bvsint_tag, boost::any arg) {
+      result_type operator()(bvtags::bvsint_tag, std::any arg) {
         int64_t value;
         unsigned width;
-        boost::tie(value, width) = boost::any_cast<bvsint_tuple>(arg);
+        std::tie(value, width) = std::any_cast<bvsint_tuple>(arg);
         ::CVC4::BitVector bvValue(width, ::CVC4::Integer(value));
         return exprManager_.mkConst(bvValue);
       }
 
-      result_type operator()(bvtags::bvbin_tag, boost::any arg) {
-        std::string val = boost::any_cast<std::string>(arg);
+      result_type operator()(bvtags::bvbin_tag, std::any arg) {
+        std::string val = std::any_cast<std::string>(arg);
         return exprManager_.mkConst(::CVC4::BitVector(val));
       }
 
-      result_type operator()(bvtags::bvhex_tag, boost::any arg) {
-        std::string hex = boost::any_cast<std::string>(arg);
+      result_type operator()(bvtags::bvhex_tag, std::any arg) {
+        std::string hex = std::any_cast<std::string>(arg);
         return exprManager_.mkConst(::CVC4::BitVector(hex, 16));
       }
 
@@ -197,15 +196,14 @@ namespace metaSMT {
       }
 
       result_type operator()(predtags::equal_tag const &, result_type a, result_type b) {
-#ifndef CVC4_WITHOUT_KIND_IFF
-        if (a.getType().isBoolean() && b.getType().isBoolean()) {
-          return exprManager_.mkExpr(::CVC4::kind::IFF, a, b);
-        } else {
-          return exprManager_.mkExpr(::CVC4::kind::EQUAL, a, b);
-        }
-#else
+        /*#ifndef CVC4_WITHOUT_KIND_IFF
+                if (a.getType().isBoolean() && b.getType().isBoolean()) {
+                  return exprManager_.mkExpr(::CVC4::kind::IFF, a, b);
+                } else {
+                  return exprManager_.mkExpr(::CVC4::kind::EQUAL, a, b);
+                }
+        #else*/
         return exprManager_.mkExpr(::CVC4::kind::EQUAL, a, b);
-#endif
       }
 
       result_type operator()(predtags::nequal_tag const &, result_type a, result_type b) {
@@ -221,63 +219,128 @@ namespace metaSMT {
       ////////////////////////
 
       template <typename TagT>
-      result_type operator()(TagT, boost::any) {
+      result_type operator()(TagT, std::any) {
         assert(false);
         return exprManager_.mkConst(false);
       }
 
-      template < ::CVC4::kind::Kind_t KIND_>
+      template <::CVC4::kind::Kind_t KIND_>
       struct Op2 {
         static result_type exec(::CVC4::ExprManager &em, ::CVC4::Expr x, ::CVC4::Expr y) {
           return em.mkExpr(KIND_, x, y);
         }
       };
 
-      template < ::CVC4::kind::Kind_t KIND_>
+      template <::CVC4::kind::Kind_t KIND_>
       struct NotOp2 {
         static result_type exec(::CVC4::ExprManager &em, ::CVC4::Expr x, ::CVC4::Expr y) {
           return em.mkExpr(::CVC4::kind::NOT, em.mkExpr(KIND_, x, y));
         }
       };
 
+      result_type operator()(predtags::and_tag, result_type a, result_type b) {
+        return Op2<::CVC4::kind::AND>::exec(exprManager_, a, b);
+      }
+      result_type operator()(predtags::nand_tag, result_type a, result_type b) {
+        return NotOp2<::CVC4::kind::AND>::exec(exprManager_, a, b);
+      }
+      result_type operator()(predtags::or_tag, result_type a, result_type b) {
+        return Op2<::CVC4::kind::OR>::exec(exprManager_, a, b);
+      }
+      result_type operator()(predtags::nor_tag, result_type a, result_type b) {
+        return NotOp2<::CVC4::kind::OR>::exec(exprManager_, a, b);
+      }
+      result_type operator()(predtags::xor_tag, result_type a, result_type b) {
+        return Op2<::CVC4::kind::XOR>::exec(exprManager_, a, b);
+      }
+      result_type operator()(predtags::xnor_tag, result_type a, result_type b) {
+        return NotOp2<::CVC4::kind::XOR>::exec(exprManager_, a, b);
+      }
+      result_type operator()(predtags::implies_tag, result_type a, result_type b) {
+        return Op2<::CVC4::kind::IMPLIES>::exec(exprManager_, a, b);
+      }
+      result_type operator()(bvtags::bvand_tag, result_type a, result_type b) {
+        return Op2<::CVC4::kind::BITVECTOR_AND>::exec(exprManager_, a, b);
+      }
+      result_type operator()(bvtags::bvnand_tag, result_type a, result_type b) {
+        return Op2<::CVC4::kind::BITVECTOR_NAND>::exec(exprManager_, a, b);
+      }
+      result_type operator()(bvtags::bvor_tag, result_type a, result_type b) {
+        return Op2<::CVC4::kind::BITVECTOR_OR>::exec(exprManager_, a, b);
+      }
+      result_type operator()(bvtags::bvnor_tag, result_type a, result_type b) {
+        return Op2<::CVC4::kind::BITVECTOR_NOR>::exec(exprManager_, a, b);
+      }
+      result_type operator()(bvtags::bvxor_tag, result_type a, result_type b) {
+        return Op2<::CVC4::kind::BITVECTOR_XOR>::exec(exprManager_, a, b);
+      }
+      result_type operator()(bvtags::bvxnor_tag, result_type a, result_type b) {
+        return Op2<::CVC4::kind::BITVECTOR_XNOR>::exec(exprManager_, a, b);
+      }
+      result_type operator()(bvtags::bvadd_tag, result_type a, result_type b) {
+        return Op2<::CVC4::kind::BITVECTOR_PLUS>::exec(exprManager_, a, b);
+      }
+      result_type operator()(bvtags::bvsub_tag, result_type a, result_type b) {
+        return Op2<::CVC4::kind::BITVECTOR_SUB>::exec(exprManager_, a, b);
+      }
+      result_type operator()(bvtags::bvmul_tag, result_type a, result_type b) {
+        return Op2<::CVC4::kind::BITVECTOR_MULT>::exec(exprManager_, a, b);
+      }
+      result_type operator()(bvtags::bvudiv_tag, result_type a, result_type b) {
+        return Op2<::CVC4::kind::BITVECTOR_UDIV>::exec(exprManager_, a, b);
+      }
+      result_type operator()(bvtags::bvurem_tag, result_type a, result_type b) {
+        return Op2<::CVC4::kind::BITVECTOR_UREM>::exec(exprManager_, a, b);
+      }
+      result_type operator()(bvtags::bvsdiv_tag, result_type a, result_type b) {
+        return Op2<::CVC4::kind::BITVECTOR_SDIV>::exec(exprManager_, a, b);
+      }
+      result_type operator()(bvtags::bvsrem_tag, result_type a, result_type b) {
+        return Op2<::CVC4::kind::BITVECTOR_SREM>::exec(exprManager_, a, b);
+      }
+      result_type operator()(bvtags::bvslt_tag, result_type a, result_type b) {
+        return Op2<::CVC4::kind::BITVECTOR_SLT>::exec(exprManager_, a, b);
+      }
+      result_type operator()(bvtags::bvsle_tag, result_type a, result_type b) {
+        return Op2<::CVC4::kind::BITVECTOR_SLE>::exec(exprManager_, a, b);
+      }
+      result_type operator()(bvtags::bvsgt_tag, result_type a, result_type b) {
+        return Op2<::CVC4::kind::BITVECTOR_SGT>::exec(exprManager_, a, b);
+      }
+      result_type operator()(bvtags::bvsge_tag, result_type a, result_type b) {
+        return Op2<::CVC4::kind::BITVECTOR_SGE>::exec(exprManager_, a, b);
+      }
+      result_type operator()(bvtags::bvult_tag, result_type a, result_type b) {
+        return Op2<::CVC4::kind::BITVECTOR_ULT>::exec(exprManager_, a, b);
+      }
+      result_type operator()(bvtags::bvule_tag, result_type a, result_type b) {
+        return Op2<::CVC4::kind::BITVECTOR_ULE>::exec(exprManager_, a, b);
+      }
+      result_type operator()(bvtags::bvugt_tag, result_type a, result_type b) {
+        return Op2<::CVC4::kind::BITVECTOR_UGT>::exec(exprManager_, a, b);
+      }
+      result_type operator()(bvtags::bvuge_tag, result_type a, result_type b) {
+        return Op2<::CVC4::kind::BITVECTOR_UGE>::exec(exprManager_, a, b);
+      }
+      result_type operator()(bvtags::concat_tag, result_type a, result_type b) {
+        return Op2<::CVC4::kind::BITVECTOR_CONCAT>::exec(exprManager_, a, b);
+      }
+      result_type operator()(bvtags::bvcomp_tag, result_type a, result_type b) {
+        return Op2<::CVC4::kind::BITVECTOR_COMP>::exec(exprManager_, a, b);
+      }
+      result_type operator()(bvtags::bvshl_tag, result_type a, result_type b) {
+        return Op2<::CVC4::kind::BITVECTOR_SHL>::exec(exprManager_, a, b);
+      }
+      result_type operator()(bvtags::bvshr_tag, result_type a, result_type b) {
+        return Op2<::CVC4::kind::BITVECTOR_LSHR>::exec(exprManager_, a, b);
+      }
+      result_type operator()(bvtags::bvashr_tag, result_type a, result_type b) {
+        return Op2<::CVC4::kind::BITVECTOR_ASHR>::exec(exprManager_, a, b);
+      }
+
       template <typename TagT>
       result_type operator()(TagT, result_type a, result_type b) {
-        namespace mpl = boost::mpl;
-        using namespace ::CVC4::kind;
-
-        typedef mpl::map33<
-            // binary Logic tags
-            mpl::pair<predtags::and_tag, Op2<AND> >, mpl::pair<predtags::nand_tag, NotOp2<AND> >,
-            mpl::pair<predtags::or_tag, Op2<OR> >, mpl::pair<predtags::nor_tag, NotOp2<OR> >,
-            mpl::pair<predtags::xor_tag, Op2<XOR> >, mpl::pair<predtags::xnor_tag, NotOp2<XOR> >,
-            mpl::pair<predtags::implies_tag, Op2<IMPLIES> >
-            // binary QF_BV tags
-            ,
-            mpl::pair<bvtags::bvand_tag, Op2<BITVECTOR_AND> >, mpl::pair<bvtags::bvnand_tag, Op2<BITVECTOR_NAND> >,
-            mpl::pair<bvtags::bvor_tag, Op2<BITVECTOR_OR> >, mpl::pair<bvtags::bvnor_tag, Op2<BITVECTOR_NOR> >,
-            mpl::pair<bvtags::bvxor_tag, Op2<BITVECTOR_XOR> >, mpl::pair<bvtags::bvxnor_tag, Op2<BITVECTOR_XNOR> >,
-            mpl::pair<bvtags::bvadd_tag, Op2<BITVECTOR_PLUS> >, mpl::pair<bvtags::bvsub_tag, Op2<BITVECTOR_SUB> >,
-            mpl::pair<bvtags::bvmul_tag, Op2<BITVECTOR_MULT> >, mpl::pair<bvtags::bvudiv_tag, Op2<BITVECTOR_UDIV> >,
-            mpl::pair<bvtags::bvurem_tag, Op2<BITVECTOR_UREM> >, mpl::pair<bvtags::bvsdiv_tag, Op2<BITVECTOR_SDIV> >,
-            mpl::pair<bvtags::bvsrem_tag, Op2<BITVECTOR_SREM> >, mpl::pair<bvtags::bvslt_tag, Op2<BITVECTOR_SLT> >,
-            mpl::pair<bvtags::bvsle_tag, Op2<BITVECTOR_SLE> >, mpl::pair<bvtags::bvsgt_tag, Op2<BITVECTOR_SGT> >,
-            mpl::pair<bvtags::bvsge_tag, Op2<BITVECTOR_SGE> >, mpl::pair<bvtags::bvult_tag, Op2<BITVECTOR_ULT> >,
-            mpl::pair<bvtags::bvule_tag, Op2<BITVECTOR_ULE> >, mpl::pair<bvtags::bvugt_tag, Op2<BITVECTOR_UGT> >,
-            mpl::pair<bvtags::bvuge_tag, Op2<BITVECTOR_UGE> >, mpl::pair<bvtags::concat_tag, Op2<BITVECTOR_CONCAT> >,
-            mpl::pair<bvtags::bvcomp_tag, Op2<BITVECTOR_COMP> >, mpl::pair<bvtags::bvshl_tag, Op2<BITVECTOR_SHL> >,
-            mpl::pair<bvtags::bvshr_tag, Op2<BITVECTOR_LSHR> >, mpl::pair<bvtags::bvashr_tag, Op2<BITVECTOR_ASHR> > >
-            Opcode_Map;
-
-        typedef typename mpl::has_key<Opcode_Map, TagT>::type has_key;
-
-        if (has_key::value) {
-          typedef typename mpl::eval_if<has_key, mpl::at<Opcode_Map, TagT>, mpl::identity<Op2<UNDEFINED_KIND> > >::type
-              opcode;
-          return opcode::exec(exprManager_, a, b);
-        } else {
-          // std::cerr << "unknown operator: " << tag << std::endl;
-          assert(false && "unknown operator");
-        }
+        assert(false && "unknown operator");
         return exprManager_.mkConst(false);
       }
 

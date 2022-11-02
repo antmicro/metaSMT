@@ -1,6 +1,6 @@
 #pragma once
 
-#include <boost/mpl/bool.hpp>
+#include <type_traits>
 
 namespace metaSMT {
   namespace features {
@@ -12,7 +12,7 @@ namespace metaSMT {
      *
      **/
     template <typename Context, typename Feature>
-    struct supports : boost::mpl::false_ {};
+    struct supports : std::false_type {};
 
   }  // namespace features
 }  // namespace metaSMT

@@ -2,9 +2,6 @@
 #ifndef HEADER_metaSMT_TAG_ARRAY_HPP
 #define HEADER_metaSMT_TAG_ARRAY_HPP
 
-#include <boost/mpl/vector.hpp>
-#include <boost/variant.hpp>
-
 #include "Logic.hpp"
 
 namespace metaSMT {
@@ -46,9 +43,7 @@ namespace metaSMT {
 #undef PRINT
 #undef TAG
 
-        typedef boost::mpl::vector<nil, select_tag, store_tag, array_var_tag>::type Array_Tags;
-
-        typedef boost::make_variant_over<Array_Tags>::type Array_Tag;
+        using Array_Tag = std::variant<nil, select_tag, store_tag, array_var_tag>;
 
       }  // namespace tag
     }    // namespace Array

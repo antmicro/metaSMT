@@ -18,12 +18,14 @@ namespace metaSMT {
 
     // equality of Array types
     template <typename T>
-    typename boost::enable_if<boost::is_same<type::Array, T>, bool>::type operator==(type::Array const &a, T const &b) {
+    typename std::enable_if<std::is_same<type::Array, T>::value, bool>::type operator==(type::Array const &a,
+                                                                                        T const &b) {
       return a.elem_width == b.elem_width && a.index_width == b.index_width;
     }
 
     template <typename T>
-    typename boost::disable_if<boost::is_same<type::Array, T>, bool>::type operator==(type::Array const &, T const &) {
+    typename std::enable_if<!std::is_same<type::Array, T>::value, bool>::type operator==(type::Array const &,
+                                                                                         T const &) {
       return false;
     }
 

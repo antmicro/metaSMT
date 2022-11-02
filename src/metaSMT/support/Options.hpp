@@ -1,7 +1,7 @@
 #pragma once
 
-#include <boost/shared_ptr.hpp>
 #include <map>
+#include <memory>
 
 #include "../API/Options.hpp"
 
@@ -43,7 +43,7 @@ namespace metaSMT {
 
   struct Options {
     typedef std::map<std::string, std::string> Map;
-    typedef boost::shared_ptr<Map> SharedMap;
+    typedef std::shared_ptr<Map> SharedMap;
 
     Options() : map(new Map()) {}
 

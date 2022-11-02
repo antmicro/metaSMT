@@ -1,17 +1,15 @@
 #pragma once
 
-#include <boost/any.hpp>
-#include <boost/foreach.hpp>
-#include <boost/mpl/vector.hpp>
-#include <boost/proto/core.hpp>
-#include <boost/tuple/tuple.hpp>
-#include <boost/variant.hpp>
+#include <any>
+#include <cassert>
+#include <tuple>
+#include <variant>
 
+#include "Features.hpp"
 #include "result_wrapper.hpp"
 #include "tags/QF_BV.hpp"
 
 namespace metaSMT {
-  namespace proto = boost::proto;
   namespace bvtags = ::metaSMT::logic::QF_BV::tag;
   namespace predtags = ::metaSMT::logic::tag;
 
@@ -28,28 +26,26 @@ namespace metaSMT {
     typedef typename PredicateSolver::result_type result_base;
     typedef std::vector<result_base> bv_result;
 
-    typedef typename boost::mpl::vector2<result_base, bv_result>::type result_types_vec;
+    typedef std::variant<result_base, bv_result> result_type;
 
-    typedef typename boost::make_variant_over<result_types_vec>::type result_type;
+    typedef std::tuple<uint64_t, unsigned> bvuint_tuple;
+    typedef std::tuple<int64_t, unsigned> bvsint_tuple;
 
-    typedef boost::tuple<uint64_t, unsigned> bvuint_tuple;
-    typedef boost::tuple<int64_t, unsigned> bvsint_tuple;
+    void assertion(result_type e) { _solver.assertion(std::get<result_base>(e)); }
 
-    void assertion(result_type e) { _solver.assertion(boost::get<result_base>(e)); }
-
-    void assumption(result_type e) { _solver.assumption(boost::get<result_base>(e)); }
+    void assumption(result_type e) { _solver.assumption(std::get<result_base>(e)); }
 
     unsigned get_bv_width(result_type const& e) {
       try {
-        return boost::get<bv_result>(e).size();
-      } catch (boost::bad_get) {
+        return std::get<bv_result>(e).size();
+      } catch (std::bad_variant_access) {
         return 0;
       }
     }
 
     bool solve() { return _solver.solve(); }
 
-    result_type operator()(bvtags::var_tag var, boost::any arg) {
+    result_type operator()(bvtags::var_tag var, std::any arg) {
       // printf("bitvec\n");
       bv_result ret(var.width);
       for (unsigned i = 0; i < var.width; ++i) {
@@ -60,8 +56,8 @@ namespace metaSMT {
 
     result_type operator()(bvtags::bvand_tag, result_type arg1, result_type arg2) {
       // printf("bvand\n");
-      bv_result a = boost::get<bv_result>(arg1);
-      bv_result b = boost::get<bv_result>(arg2);
+      bv_result a = std::get<bv_result>(arg1);
+      bv_result b = std::get<bv_result>(arg2);
       assert(a.size() == b.size());
       bv_result ret(a.size());
       predtags::and_tag and_;
@@ -74,8 +70,8 @@ namespace metaSMT {
 
     result_type operator()(bvtags::bvnand_tag, result_type arg1, result_type arg2) {
       // printf("bvnand\n");
-      bv_result a = boost::get<bv_result>(arg1);
-      bv_result b = boost::get<bv_result>(arg2);
+      bv_result a = std::get<bv_result>(arg1);
+      bv_result b = std::get<bv_result>(arg2);
       assert(a.size() == b.size());
       bv_result ret(a.size());
       predtags::nand_tag nand_;
@@ -88,8 +84,8 @@ namespace metaSMT {
 
     result_type operator()(bvtags::bvor_tag, result_type arg1, result_type arg2) {
       // printf("bvor\n");
-      bv_result a = boost::get<bv_result>(arg1);
-      bv_result b = boost::get<bv_result>(arg2);
+      bv_result a = std::get<bv_result>(arg1);
+      bv_result b = std::get<bv_result>(arg2);
       assert(a.size() == b.size());
       bv_result ret(a.size());
       predtags::or_tag or_;
@@ -102,8 +98,8 @@ namespace metaSMT {
 
     result_type operator()(bvtags::bvnor_tag, result_type arg1, result_type arg2) {
       // printf("bvnor\n");
-      bv_result a = boost::get<bv_result>(arg1);
-      bv_result b = boost::get<bv_result>(arg2);
+      bv_result a = std::get<bv_result>(arg1);
+      bv_result b = std::get<bv_result>(arg2);
       assert(a.size() == b.size());
       bv_result ret(a.size());
       predtags::nor_tag tag_;
@@ -116,7 +112,7 @@ namespace metaSMT {
 
     result_type operator()(bvtags::bvnot_tag, result_type arg1) {
       // printf("bvnot\n");
-      bv_result a = boost::get<bv_result>(arg1);
+      bv_result a = std::get<bv_result>(arg1);
       bv_result ret(a.size());
       predtags::not_tag not_;
 
@@ -128,8 +124,8 @@ namespace metaSMT {
 
     result_type operator()(bvtags::bvxor_tag, result_type arg1, result_type arg2) {
       // printf("bvxor\n");
-      bv_result a = boost::get<bv_result>(arg1);
-      bv_result b = boost::get<bv_result>(arg2);
+      bv_result a = std::get<bv_result>(arg1);
+      bv_result b = std::get<bv_result>(arg2);
       assert(a.size() == b.size());
       bv_result ret(a.size());
       predtags::xor_tag xor_;
@@ -142,8 +138,8 @@ namespace metaSMT {
 
     result_type operator()(bvtags::bvxnor_tag, result_type arg1, result_type arg2) {
       // printf("bvxnor\n");
-      bv_result a = boost::get<bv_result>(arg1);
-      bv_result b = boost::get<bv_result>(arg2);
+      bv_result a = std::get<bv_result>(arg1);
+      bv_result b = std::get<bv_result>(arg2);
       assert(a.size() == b.size());
       bv_result ret(a.size());
       predtags::xnor_tag xnor_;
@@ -155,8 +151,8 @@ namespace metaSMT {
     }
 
     result_type operator()(bvtags::bvult_tag, result_type arg1, result_type arg2) {
-      bv_result a = boost::get<bv_result>(arg1);
-      bv_result b = boost::get<bv_result>(arg2);
+      bv_result a = std::get<bv_result>(arg1);
+      bv_result b = std::get<bv_result>(arg2);
       assert(a.size() == b.size());
       assert(a.size() > 0);
 
@@ -183,8 +179,8 @@ namespace metaSMT {
     }
 
     result_type operator()(bvtags::bvugt_tag, result_type arg1, result_type arg2) {
-      bv_result a = boost::get<bv_result>(arg1);
-      bv_result b = boost::get<bv_result>(arg2);
+      bv_result a = std::get<bv_result>(arg1);
+      bv_result b = std::get<bv_result>(arg2);
       assert(a.size() == b.size());
       assert(a.size() > 0);
 
@@ -211,8 +207,8 @@ namespace metaSMT {
     }
 
     result_type operator()(bvtags::bvsgt_tag, result_type arg1, result_type arg2) {
-      bv_result a = boost::get<bv_result>(arg1);
-      bv_result b = boost::get<bv_result>(arg2);
+      bv_result a = std::get<bv_result>(arg1);
+      bv_result b = std::get<bv_result>(arg2);
       assert(a.size() == b.size());
       assert(a.size() > 0);
 
@@ -241,8 +237,8 @@ namespace metaSMT {
     }
 
     result_type operator()(bvtags::bvslt_tag, result_type arg1, result_type arg2) {
-      bv_result a = boost::get<bv_result>(arg1);
-      bv_result b = boost::get<bv_result>(arg2);
+      bv_result a = std::get<bv_result>(arg1);
+      bv_result b = std::get<bv_result>(arg2);
       assert(a.size() == b.size());
       assert(a.size() > 0);
 
@@ -270,8 +266,8 @@ namespace metaSMT {
     }
 
     result_type operator()(bvtags::bvule_tag, result_type arg1, result_type arg2) {
-      bv_result a = boost::get<bv_result>(arg1);
-      bv_result b = boost::get<bv_result>(arg2);
+      bv_result a = std::get<bv_result>(arg1);
+      bv_result b = std::get<bv_result>(arg2);
       assert(a.size() == b.size());
       assert(a.size() > 0);
 
@@ -301,8 +297,8 @@ namespace metaSMT {
     }
 
     result_type operator()(bvtags::bvuge_tag, result_type arg1, result_type arg2) {
-      bv_result a = boost::get<bv_result>(arg1);
-      bv_result b = boost::get<bv_result>(arg2);
+      bv_result a = std::get<bv_result>(arg1);
+      bv_result b = std::get<bv_result>(arg2);
       assert(a.size() == b.size());
       assert(a.size() > 0);
 
@@ -332,8 +328,8 @@ namespace metaSMT {
     }
 
     result_type operator()(bvtags::bvsge_tag, result_type arg1, result_type arg2) {
-      bv_result a = boost::get<bv_result>(arg1);
-      bv_result b = boost::get<bv_result>(arg2);
+      bv_result a = std::get<bv_result>(arg1);
+      bv_result b = std::get<bv_result>(arg2);
       assert(a.size() == b.size());
       assert(a.size() > 0);
 
@@ -363,8 +359,8 @@ namespace metaSMT {
     }
 
     result_type operator()(bvtags::bvsle_tag, result_type arg1, result_type arg2) {
-      bv_result a = boost::get<bv_result>(arg1);
-      bv_result b = boost::get<bv_result>(arg2);
+      bv_result a = std::get<bv_result>(arg1);
+      bv_result b = std::get<bv_result>(arg2);
       assert(a.size() == b.size());
       assert(a.size() > 0);
 
@@ -393,13 +389,13 @@ namespace metaSMT {
     }
 
     result_type operator()(bvtags::bvadd_tag, result_type arg1, result_type arg2) {
-      bv_result a = boost::get<bv_result>(arg1);
-      bv_result b = boost::get<bv_result>(arg2);
+      bv_result a = std::get<bv_result>(arg1);
+      bv_result b = std::get<bv_result>(arg2);
       assert(a.size() == b.size());
 
       bv_result ret(a.size());
 
-      result_base carry = _solver(predtags::false_tag(), boost::any());
+      result_base carry = _solver(predtags::false_tag(), std::any());
 
       result_base xor1, or1, and1, and2;
 
@@ -417,15 +413,15 @@ namespace metaSMT {
     }
 
     result_type operator()(bvtags::bvmul_tag, result_type arg1, result_type arg2) {
-      bv_result a = boost::get<bv_result>(arg1);
-      bv_result b = boost::get<bv_result>(arg2);
-      result_type ret = bv_result(a.size(), _solver(predtags::false_tag(), boost::any()));
+      bv_result a = std::get<bv_result>(arg1);
+      bv_result b = std::get<bv_result>(arg2);
+      result_type ret = bv_result(a.size(), _solver(predtags::false_tag(), std::any()));
       result_type tmp1;
 
       for (unsigned i = 0; i < a.size(); ++i) {
         tmp1 = (*this)(bvtags::sign_extend_tag(), a.size() - 1, bv_result(1, a[i]));
         tmp1 = (*this)(bvtags::bvand_tag(), arg2, tmp1);
-        tmp1 = shiftL(boost::get<bv_result>(tmp1), i);
+        tmp1 = shiftL(std::get<bv_result>(tmp1), i);
 
         ret = (*this)(bvtags::bvadd_tag(), ret, tmp1);
       }
@@ -433,10 +429,10 @@ namespace metaSMT {
     }
 
     result_type operator()(bvtags::bvneg_tag, result_type arg1) {
-      bv_result a = boost::get<bv_result>(arg1);
+      bv_result a = std::get<bv_result>(arg1);
 
-      bv_result tmp1(a.size(), _solver(predtags::false_tag(), boost::any()));
-      tmp1.front() = _solver(predtags::true_tag(), boost::any());
+      bv_result tmp1(a.size(), _solver(predtags::false_tag(), std::any()));
+      tmp1.front() = _solver(predtags::true_tag(), std::any());
       result_type tmp2 = (*this)(bvtags::bvnot_tag(), arg1);
 
       return (*this)(bvtags::bvadd_tag(), tmp2, tmp1);
@@ -450,14 +446,15 @@ namespace metaSMT {
       return sDivRem(arg1, arg2, false);
     }
 
-    result_type operator()(bvtags::bvhex_tag, boost::any arg) {
-      std::string str = boost::any_cast<std::string>(arg);
-      result_base _0 = _solver(predtags::false_tag(), boost::any());
-      result_base _1 = _solver(predtags::true_tag(), boost::any());
+    result_type operator()(bvtags::bvhex_tag, std::any arg) {
+      std::string str = std::any_cast<std::string>(arg);
+      result_base _0 = _solver(predtags::false_tag(), std::any());
+      result_base _1 = _solver(predtags::true_tag(), std::any());
       bv_result ret(str.size() * 4, _0);
       typename bv_result::iterator iter = ret.begin();
 
-      BOOST_REVERSE_FOREACH(const char c, str) {
+      for (size_t i = 0; i < str.length(); i++) {
+        const char c = str[str.length() - 1 - i];
         switch (c) {
           case '0':
             *(iter++) = _0;
@@ -580,21 +577,21 @@ namespace metaSMT {
     result_type operator()(bvtags::bvcomp_tag, result_type arg1, result_type arg2) {
       result_type tmp = (*this)(predtags::equal_tag(), arg1, arg2);
 
-      result_base ret = boost::get<result_base>(tmp);
+      result_base ret = std::get<result_base>(tmp);
 
       return bv_result(1, ret);
     }
 
     result_type operator()(bvtags::zero_extend_tag, unsigned width, result_type arg1) {
-      bv_result a = boost::get<bv_result>(arg1);
-      bv_result tmp(a.size() + width, _solver(predtags::false_tag(), boost::any()));
+      bv_result a = std::get<bv_result>(arg1);
+      bv_result tmp(a.size() + width, _solver(predtags::false_tag(), std::any()));
 
       std::copy(a.begin(), a.end(), tmp.begin());
       return tmp;
     }
 
     result_type operator()(bvtags::sign_extend_tag, unsigned width, result_type arg1) {
-      bv_result a = boost::get<bv_result>(arg1);
+      bv_result a = std::get<bv_result>(arg1);
       assert(!a.empty());
       bv_result tmp(a.size() + width, a.back());
 
@@ -607,21 +604,21 @@ namespace metaSMT {
       // printf("try to compare bv\n");
       try {
         // printf("read arg1\n");
-        bv_result a = boost::get<bv_result>(arg1);
+        bv_result a = std::get<bv_result>(arg1);
         // printf("read arg2\n");
-        bv_result b = boost::get<bv_result>(arg2);
+        bv_result b = std::get<bv_result>(arg2);
         assert(a.size() == b.size());
-        ret = _solver(predtags::true_tag(), boost::any());
+        ret = _solver(predtags::true_tag(), std::any());
         for (unsigned i = 0; i < a.size(); ++i) {
           result_base cur = _solver(eq, a[i], b[i]);
           ret = _solver(predtags::and_tag(), cur, ret);
         }
-      } catch (boost::bad_get) {
+      } catch (std::bad_variant_access) {
         // printf("try to compare bool\n");
         // printf("read arg1\n");
-        result_base a = boost::get<result_base>(arg1);
+        result_base a = std::get<result_base>(arg1);
         // printf("read arg2\n");
-        result_base b = boost::get<result_base>(arg2);
+        result_base b = std::get<result_base>(arg2);
         ret = _solver(eq, a, b);
       }
       // printf("compare done\n");
@@ -633,33 +630,33 @@ namespace metaSMT {
       // printf("try to compare bv\n");
       try {
         // printf("read arg1\n");
-        bv_result a = boost::get<bv_result>(arg1);
+        bv_result a = std::get<bv_result>(arg1);
         // printf("read arg2\n");
-        bv_result b = boost::get<bv_result>(arg2);
+        bv_result b = std::get<bv_result>(arg2);
         assert(a.size() == b.size());
-        ret = _solver(predtags::false_tag(), boost::any());
+        ret = _solver(predtags::false_tag(), std::any());
         for (unsigned i = 0; i < a.size(); ++i) {
           result_base cur = _solver(neq, a[i], b[i]);
           ret = _solver(predtags::or_tag(), cur, ret);
         }
-      } catch (boost::bad_get) {
+      } catch (std::bad_variant_access) {
         // printf("try to compare bool\n");
         // printf("read arg1\n");
-        result_base a = boost::get<result_base>(arg1);
+        result_base a = std::get<result_base>(arg1);
         // printf("read arg2\n");
-        result_base b = boost::get<result_base>(arg2);
+        result_base b = std::get<result_base>(arg2);
         ret = _solver(neq, a, b);
       }
       // printf("compare done\n");
       return ret;
     }
 
-    result_type operator()(bvtags::bvbin_tag, boost::any arg) {
+    result_type operator()(bvtags::bvbin_tag, std::any arg) {
       // printf("bvbin\n");
-      std::string value = boost::any_cast<std::string>(arg);
+      std::string value = std::any_cast<std::string>(arg);
       bv_result ret(value.size());
-      result_base one = _solver(predtags::true_tag(), boost::any());
-      result_base zero = _solver(predtags::false_tag(), boost::any());
+      result_base one = _solver(predtags::true_tag(), std::any());
+      result_base zero = _solver(predtags::false_tag(), std::any());
       std::string::reverse_iterator vite = value.rbegin();
       typename bv_result::iterator rite = ret.begin();
       for (unsigned i = 0; i < value.size(); ++i) {
@@ -670,14 +667,14 @@ namespace metaSMT {
       return ret;
     }
 
-    result_type operator()(bvtags::bvuint_tag, boost::any arg) {
+    result_type operator()(bvtags::bvuint_tag, std::any arg) {
       uint64_t value;
       unsigned width;
-      boost::tie(value, width) = boost::any_cast<bvuint_tuple>(arg);
+      std::tie(value, width) = std::any_cast<bvuint_tuple>(arg);
 
       bv_result ret(width);
-      result_base one = _solver(predtags::true_tag(), boost::any());
-      result_base zero = _solver(predtags::false_tag(), boost::any());
+      result_base one = _solver(predtags::true_tag(), std::any());
+      result_base zero = _solver(predtags::false_tag(), std::any());
       for (unsigned i = 0; i < width; ++i) {
         ret[i] = (value & 1) ? one : zero;
         value >>= 1;
@@ -685,14 +682,14 @@ namespace metaSMT {
       return ret;
     }
 
-    result_type operator()(bvtags::bvsint_tag, boost::any arg) {
+    result_type operator()(bvtags::bvsint_tag, std::any arg) {
       int64_t value;
       unsigned width;
-      boost::tie(value, width) = boost::any_cast<bvsint_tuple>(arg);
+      std::tie(value, width) = std::any_cast<bvsint_tuple>(arg);
 
       bv_result ret(width);
-      result_base one = _solver(predtags::true_tag(), boost::any());
-      result_base zero = _solver(predtags::false_tag(), boost::any());
+      result_base one = _solver(predtags::true_tag(), std::any());
+      result_base zero = _solver(predtags::false_tag(), std::any());
       for (unsigned i = 0; i < width; ++i) {
         ret[i] = (value & 1) ? one : zero;
         value >>= 1;
@@ -700,25 +697,25 @@ namespace metaSMT {
       return ret;
     }
 
-    result_type operator()(bvtags::bit0_tag, boost::any arg) {
+    result_type operator()(bvtags::bit0_tag, std::any arg) {
       // printf("bit0\n");
       return bv_result(1, _solver(predtags::false_tag(), arg));
     }
 
-    result_type operator()(bvtags::bit1_tag, boost::any arg) {
+    result_type operator()(bvtags::bit1_tag, std::any arg) {
       // printf("bit1\n");
       return bv_result(1, _solver(predtags::true_tag(), arg));
     }
 
     result_type operator()(bvtags::bvshr_tag, result_type arg1, result_type value) {
-      bv_result a = boost::get<bv_result>(arg1);
+      bv_result a = std::get<bv_result>(arg1);
 
-      result_base zero = _solver(predtags::false_tag(), boost::any());
+      result_base zero = _solver(predtags::false_tag(), std::any());
       result_type ret = bv_result(a.size(), zero);
       predtags::ite_tag ite;
 
       for (unsigned i = 0; i < a.size(); ++i) {
-        result_type index = (*this)(bvtags::bvuint_tag(), boost::any(bvuint_tuple(i, a.size())));
+        result_type index = (*this)(bvtags::bvuint_tag(), std::any(bvuint_tuple(i, a.size())));
         ret = (*this)(ite, (*this)(predtags::equal_tag(), value, index), shiftR(a, i, zero), ret);
       }
 
@@ -726,26 +723,26 @@ namespace metaSMT {
     }
 
     result_type operator()(bvtags::bvshl_tag, result_type arg1, result_type value) {
-      bv_result a = boost::get<bv_result>(arg1);
+      bv_result a = std::get<bv_result>(arg1);
 
-      result_type ret = bv_result(a.size(), _solver(predtags::false_tag(), boost::any()));
+      result_type ret = bv_result(a.size(), _solver(predtags::false_tag(), std::any()));
       predtags::ite_tag ite;
 
       for (unsigned i = 0; i < a.size(); ++i) {
-        result_type index = (*this)(bvtags::bvuint_tag(), boost::any(bvuint_tuple(i, a.size())));
+        result_type index = (*this)(bvtags::bvuint_tag(), std::any(bvuint_tuple(i, a.size())));
         ret = (*this)(ite, (*this)(predtags::equal_tag(), value, index), shiftL(a, i), ret);
       }
       return ret;
     }
 
     result_type operator()(bvtags::bvashr_tag, result_type arg1, result_type value) {
-      bv_result a = boost::get<bv_result>(arg1);
+      bv_result a = std::get<bv_result>(arg1);
 
       result_type ret = bv_result(a.size(), a.back());
       predtags::ite_tag ite;
 
       for (unsigned i = 0; i < a.size(); ++i) {
-        result_type index = (*this)(bvtags::bvuint_tag(), boost::any(bvuint_tuple(i, a.size())));
+        result_type index = (*this)(bvtags::bvuint_tag(), std::any(bvuint_tuple(i, a.size())));
         ret = (*this)(ite, (*this)(predtags::equal_tag(), value, index), shiftR(a, i, a.back()), ret);
       }
 
@@ -753,12 +750,12 @@ namespace metaSMT {
     }
 
     result_type operator()(predtags::ite_tag, result_type arg1, result_type arg2, result_type arg3) {
-      result_base c = boost::get<result_base>(arg1);
+      result_base c = std::get<result_base>(arg1);
       predtags::ite_tag ite;
 
       try {
-        bv_result a = boost::get<bv_result>(arg2);
-        bv_result b = boost::get<bv_result>(arg3);
+        bv_result a = std::get<bv_result>(arg2);
+        bv_result b = std::get<bv_result>(arg3);
         bv_result ret(a.size());
         assert(a.size() == b.size());
 
@@ -767,14 +764,14 @@ namespace metaSMT {
         }
 
         return ret;
-      } catch (boost::bad_get) {
-        result_base a = boost::get<result_base>(arg2);
-        result_base b = boost::get<result_base>(arg3);
+      } catch (std::bad_variant_access) {
+        result_base a = std::get<result_base>(arg2);
+        result_base b = std::get<result_base>(arg3);
         return _solver(ite, c, a, b);
       }
     }
 
-    struct bv_getter : public boost::static_visitor<bv_result> {
+    struct bv_getter {
       bv_result operator()(bv_result const& bv) const { return bv; }
       template <typename T>
       bv_result operator()(T) const {
@@ -785,14 +782,14 @@ namespace metaSMT {
 
     result_type operator()(bvtags::extract_tag const&, unsigned upper, unsigned lower, result_type e) {
       bv_result ret(upper - lower + 1);
-      bv_result bv = boost::apply_visitor(bv_getter(), e);
+      bv_result bv = std::visit(bv_getter(), e);
       std::copy(bv.begin() + lower, bv.begin() + upper + 1, ret.begin());
       return ret;
     }
 
     result_type operator()(bvtags::concat_tag const&, result_type e1, result_type e2) {
-      bv_result bv1 = boost::apply_visitor(bv_getter(), e1);
-      bv_result bv2 = boost::apply_visitor(bv_getter(), e2);
+      bv_result bv1 = std::visit(bv_getter(), e1);
+      bv_result bv2 = std::visit(bv_getter(), e2);
       bv_result ret(bv1.size() + bv2.size());
       std::copy(bv2.begin(), bv2.end(), ret.begin());
       std::copy(bv1.begin(), bv1.end(), ret.begin() + bv2.size());
@@ -801,17 +798,17 @@ namespace metaSMT {
 
     result_wrapper read_value(result_type var) {
       try {
-        return read_value(boost::get<result_base>(var));
-      } catch (boost::bad_get) {
-        return read_value(boost::get<bv_result>(var));
+        return read_value(std::get<result_base>(var));
+      } catch (std::bad_variant_access) {
+        return read_value(std::get<bv_result>(var));
       }
     }
 
     result_wrapper read_value(result_base var) { return _solver.read_value(var); }
 
     result_wrapper read_value(bv_result const& vars) {
-      std::vector<boost::logic::tribool> ret(vars.size());
-      std::vector<boost::logic::tribool>::iterator it = ret.begin();
+      std::vector<tribool> ret(vars.size());
+      std::vector<tribool>::iterator it = ret.begin();
 
       for (unsigned i = 0; i < vars.size(); ++i, ++it) {
         *it = _solver.read_value(vars[i]);
@@ -825,12 +822,11 @@ namespace metaSMT {
     ////////////////////////
 
     template <typename TagT, typename Any>
-    // boost::disable_if< boost::is_same(Any, bv_result)::type, result_type >::type
     result_type operator()(TagT tag, Any args) {
       try {
         // std::cout << "operator " << tag << std::endl;
         return _solver(tag, args);
-      } catch (boost::bad_get) {
+      } catch (std::bad_variant_access) {
         //            std::cout << "Error bad_get in operator " << typeid(tag).name() << std::endl;
         throw;
       }
@@ -838,14 +834,14 @@ namespace metaSMT {
 
     template <typename TagT>
     result_type operator()(TagT tag, result_type a) {
-      return _solver(tag, boost::get<result_base>(a));
+      return _solver(tag, std::get<result_base>(a));
     }
 
     template <typename TagT>
     result_type operator()(TagT tag, result_type a, result_type b) {
       try {
-        return _solver(tag, boost::get<result_base>(a), boost::get<result_base>(b));
-      } catch (boost::bad_get) {
+        return _solver(tag, std::get<result_base>(a), std::get<result_base>(b));
+      } catch (std::bad_variant_access) {
         //            std::cout << "Error bad_get in operator " << typeid(tag).name() << std::endl;
         throw;
       }
@@ -854,8 +850,8 @@ namespace metaSMT {
     template <typename TagT>
     result_type operator()(TagT tag, result_type a, result_type b, result_type c) {
       try {
-        return _solver(tag, boost::get<result_base>(a), boost::get<result_base>(b), boost::get<result_base>(c));
-      } catch (boost::bad_get) {
+        return _solver(tag, std::get<result_base>(a), std::get<result_base>(b), std::get<result_base>(c));
+      } catch (std::bad_variant_access) {
         //            std::cout << "Error bad_get in operator " << typeid(tag).name() << std::endl;
         throw;
       }
@@ -870,8 +866,8 @@ namespace metaSMT {
 
    private:
     result_type sDivRem(result_type arg1, result_type arg2, bool value) {
-      bv_result a = boost::get<bv_result>(arg1);
-      bv_result b = boost::get<bv_result>(arg2);
+      bv_result a = std::get<bv_result>(arg1);
+      bv_result b = std::get<bv_result>(arg2);
 
       predtags::ite_tag ite;
       predtags::xor_tag xor_;
@@ -892,13 +888,13 @@ namespace metaSMT {
 
    private:
     result_type uDivRem(result_type arg1, result_type arg2, bool value) {
-      bv_result a = boost::get<bv_result>(arg1);
-      bv_result b = boost::get<bv_result>(arg2);
+      bv_result a = std::get<bv_result>(arg1);
+      bv_result b = std::get<bv_result>(arg2);
 
       result_type divisor = arg2;
 
-      result_base zero = _solver(predtags::false_tag(), boost::any());
-      result_base one = _solver(predtags::true_tag(), boost::any());
+      result_base zero = _solver(predtags::false_tag(), std::any());
+      result_base one = _solver(predtags::true_tag(), std::any());
 
       bv_result ret(a.size(), zero);
       result_type checker = zero;
@@ -914,13 +910,13 @@ namespace metaSMT {
      result_type ret4 = (*this)(bvtags::bvslt_tag(), b, ret);
 
     result_type bneg = (*this)(ite, _solver(and_, ret1, ret4), (*this)(bvtags::bvneg_tag(),arg2),b);
-    b = boost::get<bv_result>(bneg);
+    b = std::get<bv_result>(bneg);
 
     result_type aneg = (*this)(ite, _solver(and_, ret3, ret2), (*this)(bvtags::bvneg_tag(),arg1),a);
-    a = boost::get<bv_result>(aneg);
+    a = std::get<bv_result>(aneg);
 
      result_type aeg = (*this)(ite, _solver(and_, ret3, ret4), (*this)(bvtags::bvneg_tag(),arg1),a);
-     a = boost::get<bv_result>(aeg);
+     a = std::get<bv_result>(aeg);
 
      result_type args1 = a;
      result_type args2 = b;
@@ -928,7 +924,7 @@ namespace metaSMT {
       for (unsigned i = 0; i < a.size(); ++i) {
         result_type tmp = b.back();
         divisor = (*this)(ite, tmp, divisor, shiftL(b, 1));
-        b = boost::get<bv_result>(divisor);
+        b = std::get<bv_result>(divisor);
       }
 
       for (unsigned i = 1; i <= a.size(); ++i) {
@@ -938,14 +934,14 @@ namespace metaSMT {
 
         arg1 = (*this)(ite, do_devide, (*this)(bvtags::bvsub_tag(), arg1, divisor), arg1);
 
-        divisor = (*this)(ite, eq, divisor, shiftR(boost::get<bv_result>(divisor), 1, zero));
+        divisor = (*this)(ite, eq, divisor, shiftR(std::get<bv_result>(divisor), 1, zero));
 
         do_devide = (*this)(ite, checker, zero, do_devide);
-        ret[a.size() - i] = boost::get<result_base>(do_devide);
+        ret[a.size() - i] = std::get<result_base>(do_devide);
 
         result_type bo = (*this)(ite, checker, shiftR(ret, 1, zero), ret);
 
-        ret = boost::get<bv_result>(bo);
+        ret = std::get<bv_result>(bo);
 
         checker = (*this)(ite, eq, one, checker);
       }
@@ -959,7 +955,7 @@ namespace metaSMT {
 
    private:
     result_type shiftR(bv_result a, unsigned value, result_base& x) {
-      // bv_result a = boost::get<bv_result>(arg);
+      // bv_result a = std::get<bv_result>(arg);
       bv_result ret(a.size());
 
       if (value == 0) {
@@ -977,7 +973,7 @@ namespace metaSMT {
 
    private:
     result_type shiftL(bv_result a, unsigned value) {
-      // bv_result a = boost::get<bv_result>(arg);
+      // bv_result a = std::get<bv_result>(arg);
       bv_result ret(a.size());
 
       if (value == 0) {
@@ -986,7 +982,7 @@ namespace metaSMT {
 
       for (unsigned i = 0; i < a.size(); ++i) {
         if (i < value) {
-          ret[i] = _solver(predtags::false_tag(), boost::any());
+          ret[i] = _solver(predtags::false_tag(), std::any());
         } else
           ret[i] = a[i - value];
       }
@@ -1000,7 +996,7 @@ namespace metaSMT {
   namespace features {
     /* Stack supports stack api */
     template <typename Context>
-    struct supports<BitBlast<Context>, features::addclause_api> : boost::mpl::true_ {};
+    struct supports<BitBlast<Context>, features::addclause_api> : std::true_type {};
 
     /* Forward all other supported operations */
     template <typename Context, typename Feature>

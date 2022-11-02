@@ -1,8 +1,7 @@
 
 #pragma once
 
-#include <boost/any.hpp>
-#include <boost/foreach.hpp>
+#include <any>
 #include <vector>
 
 #include "../Features.hpp"
@@ -33,17 +32,17 @@ namespace metaSMT {
       return true_lit;
     }
 
-    result_type operator()(logic::tag::var_tag const&, boost::any) {
+    result_type operator()(logic::tag::var_tag const&, std::any) {
       result_type lit = {int(impl::new_var_id())};
       return lit;
     }
 
-    result_type operator()(logic::tag::true_tag const&, boost::any) {
+    result_type operator()(logic::tag::true_tag const&, std::any) {
       // std::cout << "true " << true_lit << std::endl;
       return true_lit;
     }
 
-    result_type operator()(logic::tag::false_tag const&, boost::any) {
+    result_type operator()(logic::tag::false_tag const&, std::any) {
       // std::cout << "false " << -true_lit << std::endl;
       return -true_lit;
     }
@@ -182,7 +181,7 @@ namespace metaSMT {
   namespace features {
     /* Stack supports stack api */
     template <typename Context>
-    struct supports<SAT_Clause<Context>, features::addclause_api> : boost::mpl::true_ {};
+    struct supports<SAT_Clause<Context>, features::addclause_api> : std::true_type {};
 
     /* Forward all other supported operations */
     template <typename Context, typename Feature>

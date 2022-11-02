@@ -1,6 +1,6 @@
 #pragma once
 
-#include <boost/type_traits/is_same.hpp>
+#include <type_traits>
 
 namespace metaSMT {
   namespace type {
@@ -15,7 +15,7 @@ namespace metaSMT {
     /** equality of Boolean Types **/
     template <typename T>
     bool operator==(Boolean const&, T const&) {
-      return boost::is_same<T, Boolean>::value;
+      return std::is_same_v<T, Boolean>;
     }
 
   }  // namespace type

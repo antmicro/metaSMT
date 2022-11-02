@@ -1,10 +1,8 @@
 #pragma once
 
-#include <boost/mpl/assert.hpp>
-#include <boost/mpl/contains.hpp>
-#include <metaSMT/frontend/Logic.hpp>
 #include <metaSMT/tags/Cardinality.hpp>
 
+#include "../../tags/Logic.hpp"
 #include "object.hpp"
 
 namespace metaSMT {
@@ -61,9 +59,9 @@ namespace metaSMT {
         using namespace metaSMT::logic;
         unsigned const magic_number = 0;
         if (n > magic_number) {
-          predicate p = new_variable();
-          metaSMT::assertion(ctx, logic::equal(p, r));
-          return evaluate(ctx, p);
+          auto p = new_variable();
+          metaSMT::assertion(ctx, ctx(logic::tag::equal_tag{}, p, r));
+          return ctx(p);
         } else {
           return r;
         }
@@ -86,15 +84,15 @@ namespace metaSMT {
         for (unsigned v = 0; v < ps.size() - cardinality + 1; ++v) {
           for (unsigned u = 0; u < cardinality + 1; ++u) {
             if (u == 0 && v == 0) {
-              rails[0][0] = formula(ctx, u + v, evaluate(ctx, eq));
+              rails[0][0] = formula(ctx, u + v, ctx(eq));
             } else if (u == 0) {
               rails[v % 2][0] =
-                  formula(ctx, u + v, evaluate(ctx, Ite(evaluate(ctx, ps[v - 1]), gt, rails[(v - 1) % 2][0])));
+                  formula(ctx, u + v, ctx(logic::tag::ite_tag{}, ctx(ps[v - 1]), gt, rails[(v - 1) % 2][0]));
             } else if (v == 0) {
-              rails[0][u] = formula(ctx, u + v, evaluate(ctx, Ite(evaluate(ctx, ps[u - 1]), rails[0][u - 1], lt)));
+              rails[0][u] = formula(ctx, u + v, ctx(logic::tag::ite_tag{}, ctx(ps[u - 1]), rails[0][u - 1], lt));
             } else {
-              rails[v % 2][u] =
-                  formula(ctx, u + v, evaluate(ctx, Ite(ps[u + v - 1], rails[v % 2][u - 1], rails[(v - 1) % 2][u])));
+              rails[v % 2][u] = formula(
+                  ctx, u + v, ctx(logic::tag::ite_tag{}, ps[u + v - 1], rails[v % 2][u - 1], rails[(v - 1) % 2][u]));
             }
           }
         }
@@ -104,7 +102,8 @@ namespace metaSMT {
       template <typename Context, typename Tag, typename Boolean>
       typename Context::result_type cardinality(Context &, cardinality::Cardinality<Tag, Boolean> const &) {
         /** error: unknown tag **/
-        BOOST_MPL_ASSERT_NOT((boost::mpl::contains<cardtags::Cardinality_Tags, Tag>));
+        // FIXME:
+        // ASSERT_NOT((contains<cardtags::Cardinality_Tags, Tag>));
       }
 
       template <typename Context, typename Boolean>
@@ -115,7 +114,7 @@ namespace metaSMT {
 
         assert(ps.size() > 0 && "Equality cardinality constraint requires at least one input variable");
 
-        return cardinality_any(ctx, ps, cardinality, logic::False, logic::True, logic::False);
+        return cardinality_any(ctx, ps, cardinality, false, true, false);
       }
 
       template <typename Context, typename Boolean>
@@ -125,7 +124,7 @@ namespace metaSMT {
         unsigned const cardinality = c.cardinality;
 
         assert(ps.size() > 0 && "Lower than cardinality constraint requires at least one input variable");
-        return evaluate(ctx, logic::Not(cardinality_geq(ctx, ps, cardinality)));
+        return ctx(logic::tag::not_tag{}, cardinality_geq(ctx, ps, cardinality));
       }
 
       template <typename Context, typename Boolean>
@@ -136,7 +135,7 @@ namespace metaSMT {
 
         assert(ps.size() > 0 && "Lower equal cardinality constraint requires at least one input variable");
 
-        return cardinality_any(ctx, ps, cardinality, logic::True, logic::True, logic::False);
+        return cardinality_any(ctx, ps, cardinality, true, true, false);
       }
 
       template <typename Context, typename Boolean>
@@ -147,7 +146,7 @@ namespace metaSMT {
         assert(cardinality != 0);
         assert(ps.size() > 0 && "Greater equal cardinality constraint requires at least one input variable");
 
-        return cardinality_any(ctx, ps, cardinality, logic::False, logic::True, logic::True);
+        return cardinality_any(ctx, ps, cardinality, false, true, true);
       }
 
       template <typename Context, typename Boolean>
@@ -157,7 +156,7 @@ namespace metaSMT {
         unsigned const cardinality = c.cardinality;
 
         assert(ps.size() > 0 && "Greater than cardinality constraint requires at least one input variable");
-        return evaluate(ctx, logic::Not(cardinality_leq(ctx, ps, cardinality)));
+        return ctx(logic::tag::not_tag{}, cardinality_leq(ctx, ps, cardinality));
       }
     }  // namespace bdd
   }    // namespace cardinality

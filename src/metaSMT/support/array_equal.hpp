@@ -38,7 +38,7 @@ namespace metaSMT {
   }  // namespace support
 
   template <typename Lhs, typename Rhs>
-  struct Evaluator<support::ArrayEqual<Lhs, Rhs> > : public boost::mpl::true_ {
+  struct Evaluator<support::ArrayEqual<Lhs, Rhs> > : public std::true_type {
     template <typename Context>
     static typename Context::result_type eval(Context &ctx, support::ArrayEqual<Lhs, Rhs> const &c) {
       using namespace logic;
@@ -60,7 +60,7 @@ namespace metaSMT {
   };
 
   template <typename Lhs, typename Rhs>
-  struct Evaluator<support::ArrayNequal<Lhs, Rhs> > : public boost::mpl::true_ {
+  struct Evaluator<support::ArrayNequal<Lhs, Rhs> > : public std::true_type {
     template <typename Context>
     static typename Context::result_type eval(Context &ctx, support::ArrayNequal<Lhs, Rhs> const &c) {
       using namespace logic;

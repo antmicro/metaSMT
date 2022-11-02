@@ -1,5 +1,5 @@
 #pragma once
-#include <boost/mpl/bool.hpp>
+#include <type_traits>
 
 namespace metaSMT {
   /**
@@ -25,6 +25,6 @@ namespace metaSMT {
    *  into the namespace metaSMT.
    */
   template <typename Tag>
-  struct Evaluator : public boost::mpl::false_ {};  // evaluator
+  struct Evaluator : public std::false_type {};  // evaluator
   /**@}*/
 }  // namespace metaSMT

@@ -1,33 +1,20 @@
 #pragma once
 
+#include <any>
+#include <cassert>
+#include <unordered_map>
+
 #include "API/Assertion.hpp"
 #include "API/Assumption.hpp"
-#include "API/BoolEvaluator.hpp"
+#include "API/Evaluator.hpp"
 #include "API/Options.hpp"
 #include "Features.hpp"
-#include "frontend/Array.hpp"
-#include "frontend/Logic.hpp"
-#include "frontend/QF_BV.hpp"
-#include "frontend/QF_UF.hpp"
 #include "result_wrapper.hpp"
 #include "support/Options.hpp"
-
-#if __cplusplus <= 199711L
-
-#include <boost/unordered_map.hpp>
-#define unordered_map boost::unordered_map
-
-#else
-
-#include <unordered_map>
-#define unordered_map std::unordered_map
-
-#endif
-
-#include <boost/any.hpp>
-#include <boost/proto/context.hpp>
-#include <boost/proto/core.hpp>
-#include <boost/tuple/tuple.hpp>
+#include "tags/Array.hpp"
+#include "tags/Logic.hpp"
+#include "tags/QF_BV.hpp"
+#include "tags/QF_UF.hpp"
 
 namespace metaSMT {
   /**
@@ -37,61 +24,58 @@ namespace metaSMT {
    *  to it. Variable expressions are cached and only evaluated once.
    **/
   template <typename SolverContext>
-  struct DirectSolver_Context
-      : SolverContext,
-        boost::proto::callable_context<DirectSolver_Context<SolverContext>, boost::proto::null_context> {
-    DirectSolver_Context() {
-      typedef typename boost::mpl::if_<
-          /* if   = */ typename features::supports<SolverContext, setup_option_map_cmd>::type,
-          /* then = */ option::SetupOptionMapCommand, /* else = */ option::NOPCommand>::type Command;
-      Command::template action(static_cast<SolverContext &>(*this), opt);
-    }
+  struct DirectSolver_Context : public SolverContext {
+    DirectSolver_Context() = default;
+    // DirectSolver_Context() {
+    //   typedef typename mpl::if_<
+    //       /* if   = */ typename features::supports<SolverContext, setup_option_map_cmd>::type,
+    //       /* then = */ option::SetupOptionMapCommand, /* else = */ option::NOPCommand>::type Command;
+    //   Command::template action(static_cast<SolverContext &>(*this), opt);
+    // }
 
     DirectSolver_Context(Options const &opt) : opt(opt) {}
 
     /// The returned expression type is the result_type of the SolverContext
     typedef typename SolverContext::result_type result_type;
 
-    // special handling of bvuint_tag
-    template <typename Expr1, typename Expr2>
-    result_type operator()(logic::QF_BV::tag::bvuint_tag const &tag, Expr1 value, Expr2 bw) {
-      const uint64_t val = proto::value(value);
-      const unsigned width = proto::value(bw);
+    result_type operator()(bool value) {
+      if (value)
+        return (*this)(logic::tag::true_tag{}, std::any{});
+      else
+        return (*this)(logic::tag::false_tag{}, std::any{});
+    }
 
-      return SolverContext::operator()(tag, boost::any(boost::make_tuple(val, width)));
+    // FIXME:
+    int operator()(int value) { return value; }
+
+    // special handling of bvuint_tag
+    result_type operator()(logic::QF_BV::tag::bvuint_tag const &tag, uint64_t value, unsigned bw) {
+      return SolverContext::operator()(tag, std::any(std::make_tuple(value, bw)));
     }
 
     // special handling of bvsint_tag
-    template <typename Expr1, typename Expr2>
-    result_type operator()(logic::QF_BV::tag::bvsint_tag const &tag, Expr1 value, Expr2 bw) {
-      const int64_t val = proto::value(value);
-      const unsigned width = proto::value(bw);
-
-      return SolverContext::operator()(tag, boost::any(boost::make_tuple(val, width)));
+    result_type operator()(logic::QF_BV::tag::bvsint_tag const &tag, uint64_t value, unsigned bw) {
+      return SolverContext::operator()(tag, std::any(std::make_tuple((int64_t) /*FIXME*/ value, bw)));
     }
 
     // special handling of bvbin_tag
-    template <typename Expr1>
-    result_type operator()(logic::QF_BV::tag::bvbin_tag tag, Expr1 value) {
-      const std::string val = proto::value(value);
-      return SolverContext::operator()(tag, boost::any(val));
+    result_type operator()(logic::QF_BV::tag::bvbin_tag tag, std::string value) {
+      return SolverContext::operator()(tag, std::any(value));
     }
 
     // special handling of bvhex_tag
-    template <typename Expr1>
-    result_type operator()(logic::QF_BV::tag::bvhex_tag tag, Expr1 value) {
-      const std::string val = proto::value(value);
-      return SolverContext::operator()(tag, boost::any(val));
+    result_type operator()(logic::QF_BV::tag::bvhex_tag tag, std::string value) {
+      return SolverContext::operator()(tag, std::any(value));
     }
 
     /// handling of logic::predicate (boolean variables)
-    result_type operator()(boost::proto::tag::terminal, ::metaSMT::logic::tag::var_tag tag) {
+    result_type operator()(::metaSMT::logic::tag::var_tag tag) {
       assert(tag.id != 0);
       typename VariableLookupT::const_iterator iter = _variables.find(tag.id);
       if (iter != _variables.end()) {
         return iter->second;
       } else {
-        result_type ret = SolverContext::operator()(tag, boost::any());
+        result_type ret = SolverContext::operator()(tag, std::any());
         _variables.insert(std::make_pair(tag.id, ret));
         return ret;
       }
@@ -107,15 +91,14 @@ namespace metaSMT {
      *      types) containing the assignment for var, or "X" if var is not
      *      known to the solver.
      **/
-    result_wrapper read_value(logic::predicate var) {
-      logic::tag::var_tag tag = boost::proto::value(var);
+    result_wrapper read_value(logic::tag::var_tag tag) {
       assert(tag.id != 0);
       typename VariableLookupT::const_iterator iter = _variables.find(tag.id);
       if (iter != _variables.end()) {
-        return SolverContext::read_value(boost::proto::eval(var, *this));
+        return (*this)(tag);  // SolverContext::read_value(proto::eval(var, *this));
       } else {
         // unknown variable
-        return result_wrapper(&boost::logic::indeterminate);
+        return result_wrapper(&indeterminate);
       }
     }
 
@@ -128,121 +111,102 @@ namespace metaSMT {
      * @returns a result_wrapper containing the assignment for var, or "X" if
      *      var is not known to the solver.
      **/
-    result_wrapper read_value(logic::QF_BV::bitvector var) {
-      logic::QF_BV::tag::var_tag tag = boost::proto::value(var);
+    result_wrapper read_value(logic::QF_BV::tag::var_tag tag) {
       assert(tag.id != 0);
       typename VariableLookupT::const_iterator iter = _variables.find(tag.id);
       if (iter != _variables.end()) {
-        return SolverContext::read_value(boost::proto::eval(var, *this));
+        return (*this)(tag);  // SolverContext::read_value(proto::eval(var, *this));
       } else {
         // unknown variable
-        std::vector<boost::logic::tribool> ret(tag.width, boost::logic::indeterminate);
+        std::vector<tribool> ret(tag.width, indeterminate);
         return result_wrapper(ret);
       }
     }
 
     using SolverContext::read_value;
+    using SolverContext::operator();
 
-    result_type operator()(boost::proto::tag::terminal, ::metaSMT::logic::QF_UF::tag::function_var_tag tag) {
+    result_type operator()(::metaSMT::logic::QF_UF::tag::function_var_tag tag) {
       assert(tag.id != 0);
       typename VariableLookupT::const_iterator iter = _variables.find(tag.id);
       if (iter != _variables.end()) {
         return iter->second;
       } else {
-        result_type ret = SolverContext::operator()(tag, boost::any());
+        result_type ret = SolverContext::operator()(tag, std::any());
         _variables.insert(std::make_pair(tag.id, ret));
         return ret;
       }
     }
 
-    result_type operator()(boost::proto::tag::terminal, ::metaSMT::logic::Array::tag::array_var_tag tag) {
+    result_type operator()(::metaSMT::logic::Array::tag::array_var_tag tag) {
       assert(tag.id != 0);
       typename VariableLookupT::const_iterator iter = _variables.find(tag.id);
       if (iter != _variables.end()) {
         return iter->second;
       } else {
-        result_type ret = SolverContext::operator()(tag, boost::any());
+        result_type ret = SolverContext::operator()(tag, std::any());
         _variables.insert(std::make_pair(tag.id, ret));
         return ret;
       }
     }
 
-    result_type operator()(boost::proto::tag::terminal, ::metaSMT::logic::QF_BV::tag::var_tag tag) {
+    result_type operator()(::metaSMT::logic::QF_BV::tag::var_tag tag) {
       assert(tag.id != 0);
       typename VariableLookupT::const_iterator iter = _variables.find(tag.id);
       if (iter != _variables.end()) {
         return iter->second;
       } else {
-        result_type ret = SolverContext::operator()(tag, boost::any());
+        result_type ret = SolverContext::operator()(tag, std::any());
         _variables.insert(std::make_pair(tag.id, ret));
         return ret;
       }
     }
 
-    template <typename Upper, typename Lower, typename Expr>
-    result_type operator()(logic::QF_BV::tag::extract_tag t, Upper upper, Lower lower, Expr e) {
-      return SolverContext::operator()(t, proto::value(upper), proto::value(lower), boost::proto::eval(e, *this));
-    }
-
-    template <typename Width, typename Expr>
-    result_type operator()(logic::QF_BV::tag::zero_extend_tag t, Width width, Expr e) {
-      return SolverContext::operator()(t, proto::value(width), boost::proto::eval(e, *this));
-    }
-
-    template <typename Width, typename Expr>
-    result_type operator()(logic::QF_BV::tag::sign_extend_tag t, Width width, Expr e) {
-      return SolverContext::operator()(t, proto::value(width), boost::proto::eval(e, *this));
-    }
-
-    template <typename Tag>
+    /*template <typename Tag>
     result_type operator()(Tag t) {
-      return SolverContext::operator()(t, boost::any());
-    }
+      return SolverContext::operator()(t, std::any());
+    }*/
 
-    template <typename Tag, typename Expr1>
+    /*template <typename Tag, typename Expr1>
     result_type operator()(Tag t, Expr1 e1) {
-      return SolverContext::operator()(t, boost::proto::eval(e1, *this));
-    }
+      return SolverContext::operator()(t, proto::eval(e1, *this));
+    }*/
 
     template <typename Tag, typename Expr>
     result_type operator()(Tag t, std::vector<Expr> const &es) {
       std::vector<result_type> rs;
       for (unsigned u = 0; u < es.size(); ++u) {
-        rs.push_back(evaluate(*this, es[u]));
+        rs.push_back(*(this)(es[u]));
       }
       return SolverContext::operator()(t, rs);
     }
 
     template <typename Tag, typename Expr1, typename Expr2>
     result_type operator()(Tag t, Expr1 e1, Expr2 e2) {
-      return SolverContext::operator()(t, boost::proto::eval(e1, *this), boost::proto::eval(e2, *this));
+      return SolverContext::operator()(t, (*this)(e1), (*this)(e2));
     }
 
     template <typename Tag, typename Expr1, typename Expr2, typename Expr3>
     result_type operator()(Tag t, Expr1 e1, Expr2 e2, Expr3 e3) {
-      return SolverContext::operator()(t, boost::proto::eval(e1, *this), boost::proto::eval(e2, *this),
-                                       boost::proto::eval(e3, *this));
+      return SolverContext::operator()(t, (*this)(e1), (*this)(e2), (*this)(e3));
     }
 
     template <typename Tag, typename Expr1, typename Expr2, typename Expr3, typename Expr4>
     result_type operator()(Tag t, Expr1 e1, Expr2 e2, Expr3 e3, Expr4 e4) {
-      return SolverContext::operator()(t, boost::proto::eval(e1, *this), boost::proto::eval(e2, *this),
-                                       boost::proto::eval(e3, *this), boost::proto::eval(e4, *this));
+      return SolverContext::operator()(t, (*this)(e1), (*this)(e2), (*this)(e3), (*this)(e4));
     }
 
-    result_type operator()(boost::proto::tag::terminal, result_type r) { return r; }
-
     template <typename Tag>
-    typename boost::enable_if<Evaluator<Tag>, result_type>::type operator()(boost::proto::tag::terminal const &,
-                                                                            Tag const &t) {
+    typename std::enable_if<Evaluator<Tag>::value, result_type>::type operator()(Tag const &t) {
       return Evaluator<Tag>::eval(*this, t);
     }
 
     template <typename Tag>
-    typename boost::disable_if<Evaluator<Tag>, result_type>::type operator()(boost::proto::tag::terminal const &,
-                                                                             Tag const &t) {
-      return SolverContext::operator()(t, boost::any());
+    typename std::enable_if<!Evaluator<Tag>::value, result_type>::type operator()(Tag const &t) {
+      return SolverContext::operator()(t, std::any());
     }
+
+    result_type operator()(result_type r) { return r; }
 
     unsigned get_bv_width(result_type const &e) { return SolverContext::get_bv_width(e); }
 
@@ -250,13 +214,13 @@ namespace metaSMT {
 
     void command(assumption_cmd const &, result_type e) { SolverContext::assumption(e); }
 
-    void command(set_option_cmd const &, std::string const &key, std::string const &value) {
-      opt.set(key, value);
-      typedef typename boost::mpl::if_<
-          /* if   = */ typename features::supports<SolverContext, set_option_cmd>::type,
-          /* then = */ option::SetOptionCommand, /* else = */ option::NOPCommand>::type Command;
-      Command::template action(static_cast<SolverContext &>(*this), opt, key, value);
-    }
+    // void command(set_option_cmd const &, std::string const &key, std::string const &value) {
+    //   opt.set(key, value);
+    //   typedef typename mpl::if_<
+    //       /* if   = */ typename features::supports<SolverContext, set_option_cmd>::type,
+    //       /* then = */ option::SetOptionCommand, /* else = */ option::NOPCommand>::type Command;
+    //   Command::template action(static_cast<SolverContext &>(*this), opt, key, value);
+    // }
 
     std::string command(get_option_cmd const &, std::string const &key) { return opt.get(key); }
 
@@ -267,8 +231,7 @@ namespace metaSMT {
     using SolverContext::command;
 
    private:
-    typedef typename unordered_map<unsigned, result_type> VariableLookupT;
-#undef unordered_map
+    typedef typename std::unordered_map<unsigned, result_type> VariableLookupT;
     VariableLookupT _variables;
     Options opt;
 
@@ -282,16 +245,16 @@ namespace metaSMT {
     struct supports<DirectSolver_Context<Context>, Feature> : supports<Context, Feature>::type {};
 
     template <typename Context>
-    struct supports<DirectSolver_Context<Context>, assertion_cmd> : boost::mpl::true_ {};
+    struct supports<DirectSolver_Context<Context>, assertion_cmd> : std::true_type {};
 
     template <typename Context>
-    struct supports<DirectSolver_Context<Context>, assumption_cmd> : boost::mpl::true_ {};
+    struct supports<DirectSolver_Context<Context>, assumption_cmd> : std::true_type {};
 
     template <typename Context>
-    struct supports<DirectSolver_Context<Context>, get_option_cmd> : boost::mpl::true_ {};
+    struct supports<DirectSolver_Context<Context>, get_option_cmd> : std::true_type {};
 
     template <typename Context>
-    struct supports<DirectSolver_Context<Context>, set_option_cmd> : boost::mpl::true_ {};
+    struct supports<DirectSolver_Context<Context>, set_option_cmd> : std::true_type {};
   }  // namespace features
 
   template <typename SolverType>
@@ -300,21 +263,10 @@ namespace metaSMT {
     return r;
   }
 
-  template <typename SolverType, typename Expr>
-  typename boost::disable_if<
-      typename boost::mpl::or_<
-          typename Evaluator<Expr>::type,
-          typename boost::is_same<Expr, typename DirectSolver_Context<SolverType>::result_type>::type>::type,
-      typename DirectSolver_Context<SolverType>::result_type>::type
-  evaluate(DirectSolver_Context<SolverType> &ctx, Expr const &e) {
-    return boost::proto::eval(e, ctx);
-  }
-
-  template <typename SolverType, typename Expr>
-  typename boost::enable_if<typename Evaluator<Expr>::type,
-                            typename DirectSolver_Context<SolverType>::result_type>::type
-  evaluate(DirectSolver_Context<SolverType> &ctx, Expr const &e) {
-    return Evaluator<Expr>::eval(ctx, e);
+  template <typename SolverType, typename Tag, typename Expr>
+  typename DirectSolver_Context<SolverType>::result_type evaluate(DirectSolver_Context<SolverType> &ctx, Tag tag,
+                                                                  Expr const &e) {
+    return ctx(tag, e);
   }
 
   template <typename SolverType>
@@ -322,13 +274,7 @@ namespace metaSMT {
     return ctx.solve();
   }
 
-  template <typename SolverType, typename Expr>
-  typename boost::enable_if<Evaluator<Expr>, result_wrapper>::type read_value(DirectSolver_Context<SolverType> &ctx,
-                                                                              Expr const &expr) {
-    return ctx.read_value(Evaluator<Expr>::eval(ctx, expr));
-  }
-
-  template <typename SolverType>
+  /*template <typename SolverType>
   result_wrapper read_value(DirectSolver_Context<SolverType> &ctx, logic::QF_BV::bitvector const &var) {
     return ctx.read_value(var);
   }
@@ -336,7 +282,7 @@ namespace metaSMT {
   template <typename SolverType>
   result_wrapper read_value(DirectSolver_Context<SolverType> &ctx, logic::predicate const &var) {
     return ctx.read_value(var);
-  }
+  }*/
 
   template <typename SolverType>
   result_wrapper read_value(DirectSolver_Context<SolverType> &ctx,

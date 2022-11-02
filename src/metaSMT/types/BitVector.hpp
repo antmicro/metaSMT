@@ -1,7 +1,6 @@
 #pragma once
 
-#include <boost/type_traits/is_same.hpp>
-#include <boost/utility/enable_if.hpp>
+#include <type_traits>
 
 namespace metaSMT {
   namespace type {
@@ -21,12 +20,12 @@ namespace metaSMT {
 
     /** equality of BitVector Types **/
     template <typename T>
-    typename boost::enable_if<boost::is_same<BitVector, T>, bool>::type operator==(BitVector const& a, T const& b) {
+    typename std::enable_if<std::is_same<BitVector, T>::value, bool>::type operator==(BitVector const& a, T const& b) {
       return a.width == b.width;
     }
 
     template <typename T>
-    typename boost::disable_if<boost::is_same<BitVector, T>, bool>::type operator==(BitVector const&, T const&) {
+    typename std::enable_if<!std::is_same<BitVector, T>::value, bool>::type operator==(BitVector const&, T const&) {
       return false;
     }
 

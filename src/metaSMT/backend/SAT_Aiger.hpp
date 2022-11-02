@@ -1,7 +1,6 @@
 
 #pragma once
 
-#include <boost/foreach.hpp>
 #include <set>
 #include <vector>
 
@@ -115,12 +114,12 @@ namespace metaSMT {
       }
 
       SAT::tag::lit_tag tmp;
-      BOOST_FOREACH (unsigned assertion, assertions) {
+      for (unsigned assertion : assertions) {
         tmp.id = sat_lit(assertion);
         solver.assertion(tmp);
       }
 
-      BOOST_FOREACH (unsigned assumption, assumptions) {
+      for (unsigned assumption : assumptions) {
         tmp.id = sat_lit(assumption);
         solver.assumption(tmp);
       }
@@ -148,7 +147,7 @@ namespace metaSMT {
   namespace features {
     /* Stack supports stack api */
     template <typename Context>
-    struct supports<SAT_Aiger<Context>, features::addclause_api> : boost::mpl::true_ {};
+    struct supports<SAT_Aiger<Context>, features::addclause_api> : std::true_type {};
 
     /* Forward all other supported operations */
     template <typename Context, typename Feature>

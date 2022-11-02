@@ -1,7 +1,5 @@
-#include <boost/format.hpp>
-#include <boost/random/mersenne_twister.hpp>
-#include <boost/random/uniform_int.hpp>
 #include <cstdlib>
+#include <random>
 
 #include "CUDD_Context.hpp"
 
@@ -47,8 +45,6 @@ namespace metaSMT {
         int i_1 = Cudd_ReadPerm(_manager.getManager(), Cudd_NodeReadIndex(parent));
         int i_2 = (Cudd_IsConstant(child)) ? _manager.ReadSize()
                                            : Cudd_ReadPerm(_manager.getManager(), Cudd_NodeReadIndex(child));
-        // std::cout << boost::format( "distance(v%d,v%d) = %d - %d = %d\n")
-        //	% parent->index % child->index % i_2 % i_1 % (i_2 - i_1);
         return i_2 - i_1;
       }
 
@@ -63,21 +59,15 @@ namespace metaSMT {
       unsigned count_0(DdNode *root) {
         if (Cudd_IsComplement(root)) {
           DdNode *comp = Cudd_Regular(root);
-          // std::cout << boost::format("count_0(v%d)=count_1( ~v%d )\n") % root->index% comp->index;
           return count_1(comp);
         }
-        // std::cout << boost::format("count_0(v%d)\n") % root->index;
         std::map<DdNode *, unsigned>::iterator iter = map_0.find(root);
         if (iter != map_0.end()) {
-          // std::cout << boost::format("count_0(v%d) = %d\n") % root->index % iter->second;
           return iter->second;
         } else {
           unsigned ret = count_0(Cudd_T(root)) * (1ull << skipped(root, Cudd_T(root)));
-          // std::cout << "then count is " << ret << std::endl;
           ret += count_0(Cudd_E(root)) * (1ull << skipped(root, Cudd_E(root)));
-          // std::cout << "after else count is " << ret << std::endl;
           map_0.insert(std::make_pair(root, ret));
-          // std::cout << boost::format("count_0(v%d) = %d\n") % root->index % ret;
           return ret;
         }
       }
@@ -85,23 +75,17 @@ namespace metaSMT {
       unsigned count_1(DdNode *root) {
         if (Cudd_IsComplement(root)) {
           DdNode *comp = Cudd_Regular(root);
-          // std::cout << boost::format("count_1(v%d)=count_0( ~v%d )\n") % root->index% comp->index;
           return count_0(comp);
         }
-        // std::cout << boost::format("count_1(v%d)\n") % root->index;
         std::map<DdNode *, unsigned>::iterator iter = map_1.find(root);
 
         if (iter != map_1.end()) {
-          // std::cout << boost::format("count_1(v%d) = %d\n") % root->index % iter->second;
           return iter->second;
         } else {
           unsigned ret = count_1(Cudd_T(root)) * (1ull << skipped(root, Cudd_T(root)));
-          // std::cout << "then count is " << ret << std::endl;
           ret += count_1(Cudd_E(root)) * (1ull << skipped(root, Cudd_E(root)));
-          // std::cout << "after else count is " << ret << std::endl;
 
           map_1.insert(std::make_pair(root, ret));
-          // std::cout << boost::format("count_1(v%d) = %d\n") % root->index % ret;
           return ret;
         }
       }
@@ -109,7 +93,7 @@ namespace metaSMT {
       void store_solution(DdNode *root) {
         // clear solution
         unsigned size = _manager.ReadSize();
-        std::vector<boost::logic::tribool>(size, boost::logic::indeterminate).swap(_solution);
+        std::vector<tribool>(size, indeterminate).swap(_solution);
 
         bool negated = false;
 
@@ -131,9 +115,8 @@ namespace metaSMT {
 
           // std::cout << "count: " << cnt_r << " " << cnt_t << std::endl;
 
-          boost::uniform_int<unsigned> rnd(0, cnt_r - 1);
+          std::uniform_int_distribution<unsigned> rnd(0, cnt_r - 1);
           unsigned select = rnd(gen);
-          // std::cout << boost::format("%u %u %u") %select%cnt_r%cnt_t << std::endl;
           if (select < cnt_t) {
             // std::cout << "v" << root->index << " = 1" << std::endl;
             _solution[Cudd_NodeReadIndex(root)] = true;
@@ -162,7 +145,7 @@ namespace metaSMT {
       }
 
      protected:
-      boost::mt19937 gen;
+      std::mt19937 gen;
 
      private:
       BDD previous;

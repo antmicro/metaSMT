@@ -1,8 +1,8 @@
 #pragma once
 
-#include <boost/mpl/vector.hpp>
-#include <boost/variant.hpp>
+#include <variant>
 
+#include "../impl/_var_id.hpp"
 #include "attribute.hpp"
 
 namespace metaSMT {
@@ -74,14 +74,16 @@ namespace metaSMT {
 #undef TAG
       //
       // tag variant Predicate
-      typedef boost::mpl::vector<false_tag, true_tag, not_tag, equal_tag, nequal_tag, distinct_tag, and_tag, nand_tag,
-                                 or_tag, nor_tag, xor_tag, xnor_tag, implies_tag, ite_tag, var_tag>::type
-          Predicate_Tags;
-
-      typedef boost::make_variant_over<Predicate_Tags>::type Predicate_Tag;
+      using Predicate_Tag = std::variant<false_tag, true_tag, not_tag, equal_tag, nequal_tag, distinct_tag, and_tag,
+                                         nand_tag, or_tag, nor_tag, xor_tag, xnor_tag, implies_tag, ite_tag, var_tag>;
 
     }  // namespace tag
-  }    // namespace logic
+    inline tag::var_tag new_variable() {
+      tag::var_tag tag;
+      tag.id = impl::new_var_id();
+      return tag;
+    }
+  }  // namespace logic
 }  // namespace metaSMT
 
 //  vim: ft=cpp:ts=2:sw=2:expandtab

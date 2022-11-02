@@ -2,11 +2,7 @@
 
 #include <minisat/core/Solver.h>
 
-#include <boost/any.hpp>
-#include <boost/foreach.hpp>
-#include <boost/fusion/sequence/intrinsic.hpp>
-#include <boost/fusion/support/is_sequence.hpp>
-#include <boost/variant.hpp>
+#include <any>
 #include <iostream>
 #include <vector>
 
@@ -35,10 +31,6 @@ namespace metaSMT {
 
       void clause(std::vector<result_type> const& clause) {
         const size_t s = clause.size();
-
-        // BOOST_FOREACH ( result_type const& lit, clause )
-        //   std::cout << lit.id << " ";
-        // std::cout << "0" << std::endl;
 
         switch (s) {
           case 1:
@@ -104,7 +96,7 @@ namespace metaSMT {
 
   namespace features {
     template <>
-    struct supports<solver::MiniSAT, features::addclause_api> : boost::mpl::true_ {};
+    struct supports<solver::MiniSAT, features::addclause_api> : std::true_type {};
   }  // namespace features
 }  // namespace metaSMT
 // vim: ts=2 sw=2 et

@@ -1,13 +1,7 @@
 #pragma once
 
-#include <boost/fusion/algorithm/iteration/for_each.hpp>
-#include <boost/fusion/include/distance.hpp>
-#include <boost/fusion/support/is_sequence.hpp>
-#include <boost/mpl/for_each.hpp>
 #include <iostream>
-#include <metaSMT/frontend/Logic.hpp>
 #include <metaSMT/support/cardinality.hpp>
-#include <metaSMT/transform/rewrite.hpp>
 
 using namespace metaSMT::logic;
 namespace metaSMT {
@@ -22,14 +16,14 @@ namespace metaSMT {
   struct InsertImplications {
     Context &ctx;
     typename Context::result_type &c;
-    std::map<unsigned, logic::predicate> &s;
-    InsertImplications(Context &ctx, std::map<unsigned, logic::predicate> &s, typename Context::result_type &c)
+    std::map<unsigned, bool> &s;
+    InsertImplications(Context &ctx, std::map<unsigned, bool> &s, typename Context::result_type &c)
         : ctx(ctx), c(c), s(s) {}
 
     template <typename Expr>
     void operator()(Expr e) const {
-      logic::predicate si = new_variable();
-      c = evaluate(ctx, And(c, implies(si, e)));
+      bool si = new_variable();
+      c = ctx(tag::and_tag{}, c, implies(si, e));
       s.insert(std::make_pair(s.size(), si));
     }
   }; /* detail */
@@ -44,7 +38,7 @@ namespace metaSMT {
    *dependecies between them are detected. These are also returned in a vector of vectors.
    *
    * \param ctx is a metaSMT Context
-   * \param t a boost.fusion tuple of constraints, instead of the tuple you can take a vector
+   * \param t a tuple of constraints, instead of the tuple you can take a vector
    * \return a set conflicts, where each conflict is identified by indices of
    *         the constraints involved in the conflict.
    *
@@ -59,13 +53,11 @@ namespace metaSMT {
    */
   template <typename Context, typename Tuple>
   std::vector<std::vector<unsigned> > contradiction_analysis(Context &ctx, Tuple t) {
-    using namespace boost::fusion;
-
     std::vector<std::vector<unsigned> > results;  // Fürs Endergebnis
-    std::map<unsigned, logic::predicate> s;       // Vector für si's 1.version
-    std::vector<logic::predicate> sv;             // s im vector sv
+    std::map<unsigned, bool> s;                   // Vector für si's 1.version
+    std::vector<bool> sv;                         // s im vector sv
 
-    typename Context::result_type c = evaluate(ctx, True);
+    typename Context::result_type c = ctx(true);
 
     InsertImplications<Context> impl(ctx, s, c);
     for_each(t, impl);
@@ -76,9 +68,9 @@ namespace metaSMT {
   std::vector<std::vector<unsigned> > contradiction_analysis(Context &ctx,
                                                              std::vector<typename Context::result_type> t) {
     std::vector<std::vector<unsigned> > results;  // Fürs Endergebnis
-    std::map<unsigned, logic::predicate> s;       // Vector für si's 1.version
+    std::map<unsigned, bool> s;                   // Vector für si's 1.version
 
-    typename Context::result_type c = evaluate(ctx, True);
+    typename Context::result_type c = ctx(true);
 
     InsertImplications<Context> impl(ctx, s, c);
     std::for_each(t.begin(), t.end(), impl);
@@ -90,12 +82,9 @@ namespace metaSMT {
   std::vector<std::vector<unsigned> > analyze_conflicts(Context &ctx, std::map<unsigned, BooleanType> s,
                                                         typename Context::result_type c,
                                                         std::vector<std::vector<unsigned> > results) {
-    using namespace boost::fusion;
-
     typedef std::pair<unsigned, BooleanType> Si_Pair;
     std::vector<BooleanType> sv;
     metaSMT::assumption(ctx, c);
-    // BOOST_FOREACH(Si_Pair si, s)
     for (Si_Pair si : s) {
       metaSMT::assumption(ctx, si.second);
     }
@@ -130,17 +119,13 @@ namespace metaSMT {
 
     std::vector<BooleanType> sv;
 
-    // BOOST_FOREACH(Si_Pair si, enable_vars)
     for (Si_Pair si : enable_vars) {
-      sv.push_back(si.second);  // ::iterator
-                                //    std::cout  << indent << " " << si.first << std::endl;
+      sv.push_back(si.second);
     }
 
     typename Context::result_type custom_c = c;
-    // BOOST_FOREACH(Si_Pair si, confl_vars)
     for (Si_Pair si : confl_vars) {
-      custom_c = evaluate(ctx, And(custom_c, si.second));
-      //  std::cout  << indent << " " << si.first << std::endl;
+      custom_c = ctx(tag::and_tag{}, custom_c, si.second);
     }
 
     // check custom_c is SATISFIABLE
@@ -148,7 +133,6 @@ namespace metaSMT {
     if (!solve(ctx)) {
       // confl_vars is a complete conflict
       std::vector<unsigned> result;
-      // BOOST_FOREACH( Si_Pair si, confl_vars)
       for (Si_Pair si : confl_vars) {
         result.push_back(si.first);
       }
@@ -160,7 +144,7 @@ namespace metaSMT {
 
     for (unsigned j = 1; j <= size; j++) {
       // prüfe ob diese formel erfüllbar ist
-      metaSMT::assumption(ctx, And(cardinality_eq(ctx, sv, size - j), custom_c));
+      metaSMT::assumption(ctx, ctx(tag::and_tag{}, cardinality_eq(ctx, sv, size - j), custom_c));
 
       if (!solve(ctx)) continue;
 
@@ -169,7 +153,6 @@ namespace metaSMT {
 
       // sammel alle abgeschalteten si in conflicting
       std::map<unsigned, BooleanType> conflicting;
-      // BOOST_FOREACH(Si_Pair si, enable_vars)
       for (Si_Pair si : enable_vars) {
         bool tmp = read_value(ctx, si.second);
         if (!tmp) {
@@ -177,12 +160,11 @@ namespace metaSMT {
           custom_enab.erase(si.first);
         }
       }
-      // BOOST_FOREACH(Si_Pair si, conflicting)
       for (Si_Pair si : conflicting) {
         custom_conf.insert(si);
         analyze_multiple_conflict(ctx, c, custom_enab, custom_conf, results);
         custom_conf.erase(si.first);
-      }  // BOOST_FOREACH Si_Pair , Conflicting
+      }
       // found at least one conflict
       break;
     }  // KLammer für for-schleife

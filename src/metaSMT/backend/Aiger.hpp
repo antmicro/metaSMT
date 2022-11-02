@@ -1,7 +1,7 @@
 
 #pragma once
 
-#include <boost/any.hpp>
+#include <any>
 
 #include "../tags/Logic.hpp"
 
@@ -20,11 +20,11 @@ namespace metaSMT {
     Aiger() : aig(aiger_init()) {}
     ~Aiger() { aiger_reset(aig); }
 
-    result_type operator()(logic::tag::var_tag const&, boost::any) { return new_var(); }
+    result_type operator()(logic::tag::var_tag const&, std::any) { return new_var(); }
 
-    result_type operator()(logic::tag::true_tag const&, boost::any) { return aiger_true; }
+    result_type operator()(logic::tag::true_tag const&, std::any) { return aiger_true; }
 
-    result_type operator()(logic::tag::false_tag const&, boost::any) { return aiger_false; }
+    result_type operator()(logic::tag::false_tag const&, std::any) { return aiger_false; }
 
     result_type operator()(logic::tag::not_tag const&, result_type operand) { return aiger_not(operand); }
 

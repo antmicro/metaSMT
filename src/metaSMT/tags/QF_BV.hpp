@@ -2,8 +2,7 @@
 #ifndef HEADER_metaSMT_TAG_QF_BV_HPP
 #define HEADER_metaSMT_TAG_QF_BV_HPP
 
-#include <boost/mpl/vector/vector40.hpp>
-#include <boost/variant.hpp>
+#include <variant>
 
 #include "Logic.hpp"
 
@@ -100,18 +99,22 @@ namespace metaSMT {
 #undef TAG
 
         // tag variant QF_BV_Tag
-        typedef boost::mpl::vector39<nil, bit0_tag, bit1_tag, bvnot_tag, bvneg_tag, bvand_tag, bvnand_tag, bvor_tag,
-                                     bvnor_tag, bvxor_tag, bvxnor_tag, bvcomp_tag, bvadd_tag, bvmul_tag, bvsub_tag,
-                                     bvsrem_tag, bvsdiv_tag, bvurem_tag, bvudiv_tag, bvuint_tag, bvsint_tag, bvbin_tag,
-                                     bvhex_tag, bvslt_tag, bvsgt_tag, bvsle_tag, bvsge_tag, bvult_tag, bvugt_tag,
-                                     bvule_tag, bvuge_tag, concat_tag, extract_tag, zero_extend_tag, sign_extend_tag,
-                                     bvshl_tag, bvshr_tag, bvashr_tag, var_tag>::type QF_BV_Tags;
-
-        typedef boost::make_variant_over<QF_BV_Tags>::type QF_BV_Tag;
+        using QF_BV_Tag =
+            std::variant<nil, bit0_tag, bit1_tag, bvnot_tag, bvneg_tag, bvand_tag, bvnand_tag, bvor_tag, bvnor_tag,
+                         bvxor_tag, bvxnor_tag, bvcomp_tag, bvadd_tag, bvmul_tag, bvsub_tag, bvsrem_tag, bvsdiv_tag,
+                         bvurem_tag, bvudiv_tag, bvuint_tag, bvsint_tag, bvbin_tag, bvhex_tag, bvslt_tag, bvsgt_tag,
+                         bvsle_tag, bvsge_tag, bvult_tag, bvugt_tag, bvule_tag, bvuge_tag, concat_tag, extract_tag,
+                         zero_extend_tag, sign_extend_tag, bvshl_tag, bvshr_tag, bvashr_tag, var_tag>;
 
       }  // namespace tag
-    }    // namespace QF_BV
-  }      // namespace logic
+      inline tag::var_tag new_bitvector(unsigned width = 1) {
+        tag::var_tag tag;
+        tag.id = impl::new_var_id();
+        tag.width = width;
+        return tag;
+      }
+    }  // namespace QF_BV
+  }    // namespace logic
 }  // namespace metaSMT
 #endif  // HEADER_metaSMT_TAG_QF_BV_HPP
 //  vim: ft=cpp:ts=2:sw=2:expandtab

@@ -8,9 +8,7 @@ extern "C" {
 #include <stp/c_interface.h>
 }
 
-#include <boost/any.hpp>
-#include <boost/mpl/map/map40.hpp>
-#include <boost/tuple/tuple.hpp>
+#include <any>
 #include <cstdio>
 #include <list>
 
@@ -27,8 +25,8 @@ namespace metaSMT {
      */
     class STP {
      private:
-      typedef boost::tuple<uint64_t, unsigned> bvuint_tuple;
-      typedef boost::tuple<int64_t, unsigned> bvsint_tuple;
+      typedef std::tuple<uint64_t, unsigned> bvuint_tuple;
+      typedef std::tuple<int64_t, unsigned> bvsint_tuple;
 
      public:
       typedef Expr result_type;
@@ -107,7 +105,7 @@ namespace metaSMT {
               return result_wrapper(getBVUnsignedLongLong(cex), width);
             } else {
               std::string str = exprString(cex);
-              assert(str.find("0b") == 0);
+              std::cout << str << std::endl;
               size_t pos = str.find_first_of(' ');  // find trailing space
               return result_wrapper(pos != std::string::npos ? str.substr(2, pos - 2) : str.substr(2));
             }
@@ -121,16 +119,16 @@ namespace metaSMT {
       }
 
       // predtags
-      result_type operator()(predtags::var_tag const& var, boost::any) {
+      result_type operator()(predtags::var_tag const& var, std::any) {
         Type bool_ty = vc_boolType(vc);
         char buf[64];
         sprintf(buf, "var_%u", var.id);
         return ptr(vc_varExpr(vc, buf, bool_ty));
       }
 
-      result_type operator()(predtags::false_tag, boost::any) { return ptr(vc_falseExpr(vc)); }
+      result_type operator()(predtags::false_tag, std::any) { return ptr(vc_falseExpr(vc)); }
 
-      result_type operator()(predtags::true_tag, boost::any) { return ptr(vc_trueExpr(vc)); }
+      result_type operator()(predtags::true_tag, std::any) { return ptr(vc_trueExpr(vc)); }
 
       result_type operator()(predtags::not_tag, result_type e) { return ptr(vc_notExpr(vc, e)); }
 
@@ -153,7 +151,7 @@ namespace metaSMT {
       }
 
       // bvtags
-      result_type operator()(bvtags::var_tag const& var, boost::any) {
+      result_type operator()(bvtags::var_tag const& var, std::any) {
         assert(var.width != 0);
         Type bv_ty = vc_bvType(vc, var.width);
         char buf[64];
@@ -161,18 +159,18 @@ namespace metaSMT {
         return ptr(vc_varExpr(vc, buf, bv_ty));
       }
 
-      result_type operator()(bvtags::bit0_tag, boost::any) {
+      result_type operator()(bvtags::bit0_tag, std::any) {
         return (vc_bvConstExprFromInt(vc, 1, 0));  // No ptr()
       }
 
-      result_type operator()(bvtags::bit1_tag, boost::any) {
+      result_type operator()(bvtags::bit1_tag, std::any) {
         return (vc_bvConstExprFromInt(vc, 1, 1));  // No ptr()
       }
 
-      result_type operator()(bvtags::bvuint_tag, boost::any arg) {
+      result_type operator()(bvtags::bvuint_tag, std::any arg) {
         uint64_t value;
         unsigned width;
-        boost::tie(value, width) = boost::any_cast<bvuint_tuple>(arg);
+        std::tie(value, width) = std::any_cast<bvuint_tuple>(arg);
 
         if (width > 8 * sizeof(unsigned long long)) {
           std::string val(width, '0');
@@ -188,10 +186,10 @@ namespace metaSMT {
         }
       }
 
-      result_type operator()(bvtags::bvsint_tag, boost::any arg) {
+      result_type operator()(bvtags::bvsint_tag, std::any arg) {
         int64_t value;
         unsigned width;
-        boost::tie(value, width) = boost::any_cast<bvsint_tuple>(arg);
+        std::tie(value, width) = std::any_cast<bvsint_tuple>(arg);
 
         if (width > 8 * sizeof(unsigned long long)) {
           std::string val(width, '0');
@@ -207,13 +205,13 @@ namespace metaSMT {
         }
       }
 
-      result_type operator()(bvtags::bvbin_tag, boost::any arg) {
-        std::string val = boost::any_cast<std::string>(arg);
+      result_type operator()(bvtags::bvbin_tag, std::any arg) {
+        std::string val = std::any_cast<std::string>(arg);
         return (vc_bvConstExprFromStr(vc, val.c_str()));
       }
 
-      result_type operator()(bvtags::bvhex_tag, boost::any arg) {
-        std::string hex = boost::any_cast<std::string>(arg);
+      result_type operator()(bvtags::bvhex_tag, std::any arg) {
+        std::string hex = std::any_cast<std::string>(arg);
         std::string bin(hex.size() * 4, '\0');
 
         for (unsigned i = 0; i < hex.size(); ++i) {
@@ -330,7 +328,7 @@ namespace metaSMT {
         return ptr(vc_notExpr(vc, operator()(predtags::equal_tag(), a, b)));
       }
 
-      result_type operator()(arraytags::array_var_tag const& var, boost::any) {
+      result_type operator()(arraytags::array_var_tag const& var, std::any) {
         if (var.id == 0) {
           throw std::runtime_error("uninitialized array used");
         }
@@ -362,7 +360,7 @@ namespace metaSMT {
       ////////////////////////
 
       template <typename TagT>
-      result_type operator()(TagT, boost::any) {
+      result_type operator()(TagT, std::any) {
         assert(false);
         return ptr(vc_falseExpr(vc));
       }
@@ -392,49 +390,98 @@ namespace metaSMT {
         static result_type exec(VC vc, Expr x, Expr y) { return vc_bvNotExpr(vc, (*FN)(vc, x, y)); }
       };
 
+      result_type operator()(predtags::and_tag, result_type a, result_type b) {
+        return ptr(VC_F2<&vc_andExpr>::exec(vc, a, b));
+      }
+      result_type operator()(predtags::nand_tag, result_type a, result_type b) {
+        return ptr(VC_NOT_F2<&vc_andExpr>::exec(vc, a, b));
+      }
+      result_type operator()(predtags::or_tag, result_type a, result_type b) {
+        return ptr(VC_F2<&vc_orExpr>::exec(vc, a, b));
+      }
+      result_type operator()(predtags::nor_tag, result_type a, result_type b) {
+        return ptr(VC_NOT_F2<&vc_orExpr>::exec(vc, a, b));
+      }
+      result_type operator()(predtags::xor_tag, result_type a, result_type b) {
+        return ptr(VC_F2<&vc_xorExpr>::exec(vc, a, b));
+      }
+      result_type operator()(predtags::xnor_tag, result_type a, result_type b) {
+        return ptr(VC_NOT_F2<&vc_xorExpr>::exec(vc, a, b));
+      }
+      result_type operator()(predtags::implies_tag, result_type a, result_type b) {
+        return ptr(VC_F2<&vc_impliesExpr>::exec(vc, a, b));
+      }
+      result_type operator()(bvtags::bvand_tag, result_type a, result_type b) {
+        return ptr(VC_F2<&vc_bvAndExpr>::exec(vc, a, b));
+      }
+      result_type operator()(bvtags::bvnand_tag, result_type a, result_type b) {
+        return ptr(VC_BVNOT_F2<&vc_bvAndExpr>::exec(vc, a, b));
+      }
+      result_type operator()(bvtags::bvor_tag, result_type a, result_type b) {
+        return ptr(VC_F2<&vc_bvOrExpr>::exec(vc, a, b));
+      }
+      result_type operator()(bvtags::bvnor_tag, result_type a, result_type b) {
+        return ptr(VC_BVNOT_F2<&vc_bvOrExpr>::exec(vc, a, b));
+      }
+      result_type operator()(bvtags::bvxor_tag, result_type a, result_type b) {
+        return ptr(VC_F2<&vc_bvXorExpr>::exec(vc, a, b));
+      }
+      result_type operator()(bvtags::bvxnor_tag, result_type a, result_type b) {
+        return ptr(VC_BVNOT_F2<&vc_bvXorExpr>::exec(vc, a, b));
+      }
+      result_type operator()(bvtags::bvadd_tag, result_type a, result_type b) {
+        return ptr(VC_SIZE_F2<&vc_bvPlusExpr>::exec(vc, a, b));
+      }
+      result_type operator()(bvtags::bvsub_tag, result_type a, result_type b) {
+        return ptr(VC_SIZE_F2<&vc_bvMinusExpr>::exec(vc, a, b));
+      }
+      result_type operator()(bvtags::bvmul_tag, result_type a, result_type b) {
+        return ptr(VC_SIZE_F2<&vc_bvMultExpr>::exec(vc, a, b));
+      }
+      result_type operator()(bvtags::bvudiv_tag, result_type a, result_type b) {
+        return ptr(VC_SIZE_F2<&vc_bvDivExpr>::exec(vc, a, b));
+      }
+      result_type operator()(bvtags::bvurem_tag, result_type a, result_type b) {
+        return ptr(VC_SIZE_F2<&vc_bvModExpr>::exec(vc, a, b));
+      }
+      result_type operator()(bvtags::bvsdiv_tag, result_type a, result_type b) {
+        return ptr(VC_SIZE_F2<&vc_sbvDivExpr>::exec(vc, a, b));
+      }
+      result_type operator()(bvtags::bvsrem_tag, result_type a, result_type b) {
+        return ptr(VC_SIZE_F2<&vc_sbvRemExpr>::exec(vc, a, b));
+      }
+      result_type operator()(bvtags::bvslt_tag, result_type a, result_type b) {
+        return ptr(VC_F2<&vc_sbvLtExpr>::exec(vc, a, b));
+      }
+      result_type operator()(bvtags::bvsle_tag, result_type a, result_type b) {
+        return ptr(VC_F2<&vc_sbvLeExpr>::exec(vc, a, b));
+      }
+      result_type operator()(bvtags::bvsgt_tag, result_type a, result_type b) {
+        return ptr(VC_F2<&vc_sbvGtExpr>::exec(vc, a, b));
+      }
+      result_type operator()(bvtags::bvsge_tag, result_type a, result_type b) {
+        return ptr(VC_F2<&vc_sbvGeExpr>::exec(vc, a, b));
+      }
+      result_type operator()(bvtags::bvult_tag, result_type a, result_type b) {
+        return ptr(VC_F2<&vc_bvLtExpr>::exec(vc, a, b));
+      }
+      result_type operator()(bvtags::bvule_tag, result_type a, result_type b) {
+        return ptr(VC_F2<&vc_bvLeExpr>::exec(vc, a, b));
+      }
+      result_type operator()(bvtags::bvugt_tag, result_type a, result_type b) {
+        return ptr(VC_F2<&vc_bvGtExpr>::exec(vc, a, b));
+      }
+      result_type operator()(bvtags::bvuge_tag, result_type a, result_type b) {
+        return ptr(VC_F2<&vc_bvGeExpr>::exec(vc, a, b));
+      }
+      result_type operator()(bvtags::concat_tag, result_type a, result_type b) {
+        return ptr(VC_F2<&vc_bvConcatExpr>::exec(vc, a, b));
+      }
+
       template <typename TagT>
       result_type operator()(TagT, result_type a, result_type b) {
-        namespace mpl = boost::mpl;
-
-        typedef mpl::map29<
-            // binary Logic tags
-            mpl::pair<predtags::and_tag, VC_F2<&vc_andExpr> >, mpl::pair<predtags::nand_tag, VC_NOT_F2<&vc_andExpr> >,
-            mpl::pair<predtags::or_tag, VC_F2<&vc_orExpr> >, mpl::pair<predtags::nor_tag, VC_NOT_F2<&vc_orExpr> >,
-            mpl::pair<predtags::xor_tag, VC_F2<&vc_xorExpr> >, mpl::pair<predtags::xnor_tag, VC_NOT_F2<&vc_xorExpr> >,
-            mpl::pair<predtags::implies_tag, VC_F2<&vc_impliesExpr> >
-            // binary QF_BV tags
-            ,
-            mpl::pair<bvtags::bvand_tag, VC_F2<&vc_bvAndExpr> >,
-            mpl::pair<bvtags::bvnand_tag, VC_BVNOT_F2<&vc_bvAndExpr> >,
-            mpl::pair<bvtags::bvor_tag, VC_F2<&vc_bvOrExpr> >, mpl::pair<bvtags::bvnor_tag, VC_BVNOT_F2<&vc_bvOrExpr> >,
-            mpl::pair<bvtags::bvxor_tag, VC_F2<&vc_bvXorExpr> >,
-            mpl::pair<bvtags::bvxnor_tag, VC_BVNOT_F2<&vc_bvXorExpr> >,
-            mpl::pair<bvtags::bvadd_tag, VC_SIZE_F2<&vc_bvPlusExpr> >,
-            mpl::pair<bvtags::bvsub_tag, VC_SIZE_F2<&vc_bvMinusExpr> >,
-            mpl::pair<bvtags::bvmul_tag, VC_SIZE_F2<&vc_bvMultExpr> >,
-            mpl::pair<bvtags::bvudiv_tag, VC_SIZE_F2<&vc_bvDivExpr> >,
-            mpl::pair<bvtags::bvurem_tag, VC_SIZE_F2<&vc_bvModExpr> >,
-            mpl::pair<bvtags::bvsdiv_tag, VC_SIZE_F2<&vc_sbvDivExpr> >,
-            mpl::pair<bvtags::bvsrem_tag, VC_SIZE_F2<&vc_sbvRemExpr> >,
-            mpl::pair<bvtags::bvslt_tag, VC_F2<&vc_sbvLtExpr> >, mpl::pair<bvtags::bvsle_tag, VC_F2<&vc_sbvLeExpr> >,
-            mpl::pair<bvtags::bvsgt_tag, VC_F2<&vc_sbvGtExpr> >, mpl::pair<bvtags::bvsge_tag, VC_F2<&vc_sbvGeExpr> >,
-            mpl::pair<bvtags::bvult_tag, VC_F2<&vc_bvLtExpr> >, mpl::pair<bvtags::bvule_tag, VC_F2<&vc_bvLeExpr> >,
-            mpl::pair<bvtags::bvugt_tag, VC_F2<&vc_bvGtExpr> >, mpl::pair<bvtags::bvuge_tag, VC_F2<&vc_bvGeExpr> >,
-            mpl::pair<bvtags::concat_tag, VC_F2<&vc_bvConcatExpr> > >
-            Opcode_Map;
-
-        typedef typename mpl::has_key<Opcode_Map, TagT>::type _has_key;
-
-        if (_has_key::value) {
-          typedef typename mpl::eval_if<_has_key, mpl::at<Opcode_Map, TagT>, mpl::identity<VC_F2<vc_bvAndExpr> > >::type
-              opcode;
-          return ptr(opcode::exec(vc, a, b));
-        } else {
-          // std::cerr << "unknown operator: " << tag << std::endl;
-
-          assert(false && "unknown operator");
-          return ptr(vc_falseExpr(vc));
-        }
+        assert(false && "unknown operator");
+        return ptr(vc_falseExpr(vc));
       }
 
       template <typename TagT>

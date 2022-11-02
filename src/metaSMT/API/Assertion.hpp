@@ -31,12 +31,14 @@ namespace metaSMT {
    * \param ctx The metaSMT Context
    * \param e Any Boolean expression
    */
-  template <typename Context_, typename Expr_>
-  void assertion(Context_& ctx, Expr_ const& e) {
-    BOOST_MPL_ASSERT_MSG((features::supports<Context_, assertion_cmd>::value), context_does_not_support_assertion_api,
-                         ());
+  template <typename Context_>
+  void assertion(Context_& ctx, typename Context_::result_type e) {
+    // FIXME:
+    // BOOST_MPL_ASSERT_MSG((features::supports<Context_, assertion_cmd>::value),
+    // context_does_not_support_assertion_api,
+    //                     ());
 
-    ctx.command(assertion_cmd(), evaluate(ctx, e));
+    ctx.command(assertion_cmd(), e);
   }
   /**@}*/
 }  // namespace metaSMT

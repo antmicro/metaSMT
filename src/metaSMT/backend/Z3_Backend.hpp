@@ -1,12 +1,10 @@
 #pragma once
 #include <z3++.h>
 
-#include <boost/any.hpp>
-#include <boost/mpl/map/map40.hpp>
+#include <any>
 #include <boost/multiprecision/cpp_int.hpp>
-#include <boost/tuple/tuple.hpp>
-#include <boost/tuple/tuple_io.hpp>
 #include <limits>
+#include <tuple>
 
 #include "../Features.hpp"
 #include "../result_wrapper.hpp"
@@ -34,7 +32,7 @@ namespace metaSMT {
         dummy() {}
       };  // dummy
 
-      struct equals : boost::static_visitor<bool> {
+      struct equals {
         equals() {}
 
         template <typename T1, typename T2>
@@ -49,7 +47,7 @@ namespace metaSMT {
         bool operator()(z3::expr const &lhs, z3::expr const &rhs) const { return eq(lhs, rhs); }
       };  // equals
 
-      struct domain_sort_visitor : boost::static_visitor<Z3_sort> {
+      struct domain_sort_visitor {
         domain_sort_visitor(Z3_context &ctx) : ctx(ctx) {}
 
         Z3_sort operator()(type::Boolean const &) const { return Z3_mk_bool_sort(ctx); }
@@ -68,13 +66,13 @@ namespace metaSMT {
 
     class Z3_Backend {
      private:
-      typedef boost::tuple<uint64_t, unsigned> bvuint_tuple;
-      typedef boost::tuple<int64_t, unsigned> bvsint_tuple;
+      typedef std::tuple<uint64_t, unsigned> bvuint_tuple;
+      typedef std::tuple<int64_t, unsigned> bvsint_tuple;
 
      public:
       struct result_type {
         // first type in variant has to be default constructable
-        boost::variant<detail::dummy, z3::func_decl, z3::expr> internal;
+        std::variant<detail::dummy, z3::func_decl, z3::expr> internal;
 
         result_type() {}
 
@@ -82,12 +80,12 @@ namespace metaSMT {
 
         result_type(z3::func_decl a) : internal(a) {}
 
-        inline operator z3::expr() const { return boost::get<z3::expr>(internal); }
+        inline operator z3::expr() const { return std::get<z3::expr>(internal); }
 
-        inline operator z3::func_decl() const { return boost::get<z3::func_decl>(internal); }
+        inline operator z3::func_decl() const { return std::get<z3::func_decl>(internal); }
 
         inline bool operator==(result_type const &r) const {
-          return boost::apply_visitor(detail::equals(), internal, r.internal);
+          return std::visit(detail::equals(), internal, r.internal);
         }
 
         inline bool operator!=(result_type const &r) const { return !operator==(r); }
@@ -101,7 +99,7 @@ namespace metaSMT {
 
       // typedef z3::ast result_type;
 
-      Z3_Backend() : solver_(ctx_, "QF_AUFBV"), assumption_((*this)(predtags::true_tag(), boost::any())) {}
+      Z3_Backend() : solver_(ctx_, "QF_AUFBV"), assumption_((*this)(predtags::true_tag(), std::any())) {}
 
       ~Z3_Backend() {}
 
@@ -118,7 +116,7 @@ namespace metaSMT {
         }
 
         assert(r.is_bv());
-        unsigned long long val = 0;
+        uint64_t val = 0;
         if (Z3_get_numeral_uint64(ctx_, r, &val) && val <= std::numeric_limits<uint64_t>::max())
           return result_wrapper(val, r.get_sort().bv_size());
 
@@ -142,23 +140,23 @@ namespace metaSMT {
         z3::check_result result = solver_.check(ctx_);
         // std::cerr << result << '\n';
         solver_.pop();
-        assumption_ = (*this)(predtags::true_tag(), boost::any());
+        assumption_ = (*this)(predtags::true_tag(), std::any());
         return (result == z3::sat);
       }
 
-      result_type operator()(predtags::var_tag const &var, boost::any) {
+      result_type operator()(predtags::var_tag const &var, std::any) {
         char buf[64];
         sprintf(buf, "var_%u", var.id);
         return ctx_.bool_const(buf);
       }
 
-      result_type operator()(bvtags::var_tag const &var, boost::any) {
+      result_type operator()(bvtags::var_tag const &var, std::any) {
         char buf[64];
         sprintf(buf, "var_%u", var.id);
         return ctx_.bv_const(buf, var.width);
       }
 
-      result_type operator()(arraytags::array_var_tag const &var, boost::any const &) {
+      result_type operator()(arraytags::array_var_tag const &var, std::any const &) {
         if (var.id == 0) {
           throw std::runtime_error("uninitialized array used");
         }
@@ -174,7 +172,7 @@ namespace metaSMT {
         return z3::to_expr(ctx_, Z3_mk_const(ctx_, s, ty));
       }
 
-      result_type operator()(uftags::function_var_tag const &var, boost::any) {
+      result_type operator()(uftags::function_var_tag const &var, std::any) {
         unsigned const num_args = var.args.size();
 
         // construct the name of the uninterpreted_function
@@ -185,86 +183,67 @@ namespace metaSMT {
 
         // construct result sort
         Z3_context ctx = ctx_;
-        Z3_sort result_sort = boost::apply_visitor(detail::domain_sort_visitor(ctx), var.result_type);
+        Z3_sort result_sort = std::visit(detail::domain_sort_visitor(ctx), var.result_type);
 
         // construct argument sorts
         Z3_sort *domain_sort = new Z3_sort[num_args];
         for (unsigned u = 0; u < num_args; ++u) {
-          domain_sort[u] = boost::apply_visitor(detail::domain_sort_visitor(ctx), var.args[u]);
+          domain_sort[u] = std::visit(detail::domain_sort_visitor(ctx), var.args[u]);
         }
 
         return z3::to_func_decl(ctx_, Z3_mk_func_decl(ctx_, sym, num_args, domain_sort, result_sort));
       }
 
-      result_type operator()(proto::tag::function, result_type const &func_decl) {
-        Z3_ast *arg_array = 0;
-        return z3::to_expr(ctx_, Z3_mk_app(ctx_, z3::func_decl(func_decl), 0, arg_array));
-      }
+      result_type operator()(predtags::false_tag const &, std::any) { return ctx_.bool_val(false); }
 
-      result_type operator()(proto::tag::function, result_type func_decl, result_type arg) {
-        Z3_ast arg_array[] = {z3::expr(arg)};
-        return z3::to_expr(ctx_, Z3_mk_app(ctx_, z3::func_decl(func_decl), 1, arg_array));
-      }
+      result_type operator()(predtags::true_tag const &, std::any) { return ctx_.bool_val(true); }
 
-      result_type operator()(proto::tag::function, result_type func_decl, result_type arg1, result_type arg2) {
-        Z3_ast arg_array[] = {z3::expr(arg1), z3::expr(arg2)};
-        return z3::to_expr(ctx_, Z3_mk_app(ctx_, z3::func_decl(func_decl), 2, arg_array));
-      }
-
-      result_type operator()(proto::tag::function, result_type func_decl, result_type arg1, result_type arg2,
-                             result_type arg3) {
-        Z3_ast arg_array[] = {z3::expr(arg1), z3::expr(arg2), z3::expr(arg3)};
-        return z3::to_expr(ctx_, Z3_mk_app(ctx_, z3::func_decl(func_decl), 3, arg_array));
-      }
-
-      result_type operator()(predtags::false_tag const &, boost::any) { return ctx_.bool_val(false); }
-
-      result_type operator()(predtags::true_tag const &, boost::any) { return ctx_.bool_val(true); }
-
+      /* TODO: is this needed?
       result_type operator()(predtags::not_tag const &, result_type const &a) {
         return !static_cast<z3::expr const &>(a);
-      }
+      }*/
 
       result_type operator()(predtags::nand_tag const &, result_type const &a, result_type const &b) {
-        return (*this)(predtags::not_tag(), (*this)(predtags::and_tag(), a, b));
+        return (*this)(predtags::not_tag(), (*this)(predtags::and_tag(), z3::expr(a), z3::expr(b)));
       }
 
       result_type operator()(predtags::nor_tag const &, result_type const &a, result_type const &b) {
-        return (*this)(predtags::not_tag(), (*this)(predtags::or_tag(), a, b));
+        return (*this)(predtags::not_tag(), (*this)(predtags::or_tag(), z3::expr(a), z3::expr(b)));
       }
 
       result_type operator()(predtags::xnor_tag const &, result_type const &a, result_type const &b) {
-        return (*this)(predtags::not_tag(), (*this)(predtags::xor_tag(), a, b));
+        return (*this)(predtags::not_tag(), (*this)(predtags::xor_tag(), z3::expr(a), z3::expr(b)));
       }
 
       result_type operator()(predtags::ite_tag, result_type const &a, result_type const &b, result_type const &c) {
         return z3::to_expr(ctx_, Z3_mk_ite(ctx_, z3::expr(a), z3::expr(b), z3::expr(c)));
       }
 
-      result_type operator()(bvtags::bit0_tag, boost::any) { return ctx_.bv_val(0, 1); }
+      result_type operator()(bvtags::bit0_tag, std::any) { return ctx_.bv_val(0, 1); }
 
-      result_type operator()(bvtags::bit1_tag, boost::any) { return ctx_.bv_val(1, 1); }
+      result_type operator()(bvtags::bit1_tag, std::any) { return ctx_.bv_val(1, 1); }
 
-      result_type operator()(bvtags::bvuint_tag const &, boost::any const &arg) {
+      result_type operator()(bvtags::bvuint_tag const &, std::any const &arg) {
         uint64_t value;
         unsigned width;
-        boost::tie(value, width) = boost::any_cast<bvuint_tuple>(arg);
+        std::tie(value, width) = std::any_cast<bvuint_tuple>(arg);
         Z3_sort ty = Z3_mk_bv_sort(ctx_, width);
         return z3::to_expr(ctx_, Z3_mk_unsigned_int64(ctx_, value, ty));
       }
 
-      result_type operator()(bvtags::bvsint_tag const &, boost::any const &arg) {
+      result_type operator()(bvtags::bvsint_tag const &, std::any const &arg) {
         int64_t value;
         unsigned width;
-        boost::tie(value, width) = boost::any_cast<bvsint_tuple>(arg);
+        std::tie(value, width) = std::any_cast<bvsint_tuple>(arg);
         Z3_sort ty = Z3_mk_bv_sort(ctx_, width);
         return z3::to_expr(ctx_, Z3_mk_int64(ctx_, value, ty));
       }
 
-      result_type operator()(bvtags::bvbin_tag, boost::any arg) {
-        std::string s = boost::any_cast<std::string>(arg);
+      result_type operator()(bvtags::bvbin_tag, std::any arg) {
+        std::string s = std::any_cast<std::string>(arg);
         size_t bv_len = s.size();
 
+        // FIXME: Remove this use of boost
         using boost::multiprecision::cpp_int;
         cpp_int value;
         for (unsigned i = 0; i < bv_len; i++)
@@ -275,8 +254,8 @@ namespace metaSMT {
       }
 
       // XXX will be removed in a later revision
-      result_type operator()(bvtags::bvhex_tag, boost::any arg) {
-        std::string const hex = boost::any_cast<std::string>(arg);
+      result_type operator()(bvtags::bvhex_tag, std::any arg) {
+        std::string const hex = std::any_cast<std::string>(arg);
         std::string bin(hex.size() * 4, '\0');
 
         for (unsigned i = 0; i < hex.size(); ++i) {
@@ -332,12 +311,12 @@ namespace metaSMT {
           }
         }
         // std::cout << bin << std::endl;
-        return (*this)(bvtags::bvbin_tag(), boost::any(bin));
+        return (*this)(bvtags::bvbin_tag(), std::any(bin));
       }
 
       result_type operator()(bvtags::bvcomp_tag, result_type const &a, result_type const &b) {
-        result_type bit1 = (*this)(bvtags::bit1_tag(), boost::any());
-        result_type bit0 = (*this)(bvtags::bit0_tag(), boost::any());
+        result_type bit1 = (*this)(bvtags::bit1_tag(), std::any());
+        result_type bit0 = (*this)(bvtags::bit0_tag(), std::any());
         return z3::to_expr(ctx_,
                            Z3_mk_ite(ctx_, Z3_mk_eq(ctx_, z3::expr(a), z3::expr(b)), z3::expr(bit1), z3::expr(bit0)));
       }
@@ -382,28 +361,27 @@ namespace metaSMT {
         static Z3_ast exec(Z3_context c, Z3_ast x) { return (*FN)(c, x); }
       };  // Z3_F1
 
+      result_type operator()(predtags::not_tag, result_type a) {
+        Z3_ast r = Z3_F1<&Z3_mk_not>::exec(ctx_, z3::expr(a));
+        z3::expr(a).check_error();
+        return z3::expr(z3::expr(a).ctx(), r);
+      }
+      result_type operator()(bvtags::bvneg_tag, result_type a) {
+        Z3_ast r = Z3_F1<&Z3_mk_bvneg>::exec(ctx_, z3::expr(a));
+        z3::expr(a).check_error();
+        return z3::expr(z3::expr(a).ctx(), r);
+      }
+      result_type operator()(bvtags::bvnot_tag, result_type a) {
+        Z3_ast r = Z3_F1<&Z3_mk_bvnot>::exec(ctx_, z3::expr(a));
+        z3::expr(a).check_error();
+        return z3::expr(z3::expr(a).ctx(), r);
+      }
+
       template <typename TagT>
       result_type operator()(TagT tag, result_type a) {
-        namespace mpl = boost::mpl;
-
-        typedef mpl::map<mpl::pair<predtags::not_tag, Z3_F1<&Z3_mk_not> >,
-                         mpl::pair<bvtags::bvneg_tag, Z3_F1<&Z3_mk_bvneg> >,
-                         mpl::pair<bvtags::bvnot_tag, Z3_F1<&Z3_mk_bvnot> > >
-            UnaryOpcodeMap;
-
-        typedef typename mpl::has_key<UnaryOpcodeMap, TagT>::type _has_key;
-        if (_has_key::value) {
-          typedef
-              typename mpl::eval_if<_has_key, mpl::at<UnaryOpcodeMap, TagT>, mpl::identity<Z3_F1<Z3_mk_not> > >::type
-                  opcode;
-          Z3_ast r = opcode::exec(ctx_, z3::expr(a));
-          z3::expr(a).check_error();
-          return z3::expr(z3::expr(a).ctx(), r);
-        } else {
-          std::cout << "unknown operator: " << tag << std::endl;
-          assert(false && "unknown operator");
-          return (*this)(predtags::false_tag(), boost::any());
-        }
+        std::cout << "unknown operator: " << tag << std::endl;
+        assert(false && "unknown operator");
+        return (*this)(predtags::false_tag(), std::any());
       }
 
       template <Z3_ast (*FN)(Z3_context, Z3_ast, Z3_ast)>
@@ -419,56 +397,177 @@ namespace metaSMT {
         }
       };  // Z3_F2_MULTI_ARG
 
+      result_type operator()(predtags::equal_tag, result_type a, result_type b) {
+        Z3_ast r = Z3_F2<&Z3_mk_eq>::exec(ctx_, z3::expr(a), z3::expr(b));
+        z3::expr(a).check_error();
+        return z3::expr(z3::expr(a).ctx(), r);
+      }
+      result_type operator()(predtags::nequal_tag, result_type a, result_type b) {
+        Z3_ast r = Z3_F2_MULTI_ARG<&Z3_mk_distinct>::exec(ctx_, z3::expr(a), z3::expr(b));
+        z3::expr(a).check_error();
+        return z3::expr(z3::expr(a).ctx(), r);
+      }
+      result_type operator()(predtags::distinct_tag, result_type a, result_type b) {
+        Z3_ast r = Z3_F2_MULTI_ARG<&Z3_mk_distinct>::exec(ctx_, z3::expr(a), z3::expr(b));
+        z3::expr(a).check_error();
+        return z3::expr(z3::expr(a).ctx(), r);
+      }
+      result_type operator()(predtags::and_tag, result_type a, result_type b) {
+        Z3_ast r = Z3_F2_MULTI_ARG<&Z3_mk_and>::exec(ctx_, z3::expr(a), z3::expr(b));
+        z3::expr(a).check_error();
+        return z3::expr(z3::expr(a).ctx(), r);
+      }
+      result_type operator()(predtags::or_tag, result_type a, result_type b) {
+        Z3_ast r = Z3_F2_MULTI_ARG<&Z3_mk_or>::exec(ctx_, z3::expr(a), z3::expr(b));
+        z3::expr(a).check_error();
+        return z3::expr(z3::expr(a).ctx(), r);
+      }
+      result_type operator()(predtags::xor_tag, result_type a, result_type b) {
+        Z3_ast r = Z3_F2<&Z3_mk_xor>::exec(ctx_, z3::expr(a), z3::expr(b));
+        z3::expr(a).check_error();
+        return z3::expr(z3::expr(a).ctx(), r);
+      }
+      result_type operator()(predtags::implies_tag, result_type a, result_type b) {
+        Z3_ast r = Z3_F2<&Z3_mk_implies>::exec(ctx_, z3::expr(a), z3::expr(b));
+        z3::expr(a).check_error();
+        return z3::expr(z3::expr(a).ctx(), r);
+      }
+      result_type operator()(bvtags::bvand_tag, result_type a, result_type b) {
+        Z3_ast r = Z3_F2<&Z3_mk_bvand>::exec(ctx_, z3::expr(a), z3::expr(b));
+        z3::expr(a).check_error();
+        return z3::expr(z3::expr(a).ctx(), r);
+      }
+      result_type operator()(bvtags::bvnand_tag, result_type a, result_type b) {
+        Z3_ast r = Z3_F2<&Z3_mk_bvnand>::exec(ctx_, z3::expr(a), z3::expr(b));
+        z3::expr(a).check_error();
+        return z3::expr(z3::expr(a).ctx(), r);
+      }
+      result_type operator()(bvtags::bvor_tag, result_type a, result_type b) {
+        Z3_ast r = Z3_F2<&Z3_mk_bvor>::exec(ctx_, z3::expr(a), z3::expr(b));
+        z3::expr(a).check_error();
+        return z3::expr(z3::expr(a).ctx(), r);
+      }
+      result_type operator()(bvtags::bvnor_tag, result_type a, result_type b) {
+        Z3_ast r = Z3_F2<&Z3_mk_bvnor>::exec(ctx_, z3::expr(a), z3::expr(b));
+        z3::expr(a).check_error();
+        return z3::expr(z3::expr(a).ctx(), r);
+      }
+      result_type operator()(bvtags::bvxor_tag, result_type a, result_type b) {
+        Z3_ast r = Z3_F2<&Z3_mk_bvxor>::exec(ctx_, z3::expr(a), z3::expr(b));
+        z3::expr(a).check_error();
+        return z3::expr(z3::expr(a).ctx(), r);
+      }
+      result_type operator()(bvtags::bvxnor_tag, result_type a, result_type b) {
+        Z3_ast r = Z3_F2<&Z3_mk_bvxnor>::exec(ctx_, z3::expr(a), z3::expr(b));
+        z3::expr(a).check_error();
+        return z3::expr(z3::expr(a).ctx(), r);
+      }
+      result_type operator()(bvtags::bvadd_tag, result_type a, result_type b) {
+        Z3_ast r = Z3_F2<&Z3_mk_bvadd>::exec(ctx_, z3::expr(a), z3::expr(b));
+        z3::expr(a).check_error();
+        return z3::expr(z3::expr(a).ctx(), r);
+      }
+      result_type operator()(bvtags::bvsub_tag, result_type a, result_type b) {
+        Z3_ast r = Z3_F2<&Z3_mk_bvsub>::exec(ctx_, z3::expr(a), z3::expr(b));
+        z3::expr(a).check_error();
+        return z3::expr(z3::expr(a).ctx(), r);
+      }
+      result_type operator()(bvtags::bvmul_tag, result_type a, result_type b) {
+        Z3_ast r = Z3_F2<&Z3_mk_bvmul>::exec(ctx_, z3::expr(a), z3::expr(b));
+        z3::expr(a).check_error();
+        return z3::expr(z3::expr(a).ctx(), r);
+      }
+      result_type operator()(bvtags::bvudiv_tag, result_type a, result_type b) {
+        Z3_ast r = Z3_F2<&Z3_mk_bvudiv>::exec(ctx_, z3::expr(a), z3::expr(b));
+        z3::expr(a).check_error();
+        return z3::expr(z3::expr(a).ctx(), r);
+      }
+      result_type operator()(bvtags::bvurem_tag, result_type a, result_type b) {
+        Z3_ast r = Z3_F2<&Z3_mk_bvurem>::exec(ctx_, z3::expr(a), z3::expr(b));
+        z3::expr(a).check_error();
+        return z3::expr(z3::expr(a).ctx(), r);
+      }
+      result_type operator()(bvtags::bvsdiv_tag, result_type a, result_type b) {
+        Z3_ast r = Z3_F2<&Z3_mk_bvsdiv>::exec(ctx_, z3::expr(a), z3::expr(b));
+        z3::expr(a).check_error();
+        return z3::expr(z3::expr(a).ctx(), r);
+      }
+      result_type operator()(bvtags::bvsrem_tag, result_type a, result_type b) {
+        Z3_ast r = Z3_F2<&Z3_mk_bvsrem>::exec(ctx_, z3::expr(a), z3::expr(b));
+        z3::expr(a).check_error();
+        return z3::expr(z3::expr(a).ctx(), r);
+      }
+      result_type operator()(bvtags::bvslt_tag, result_type a, result_type b) {
+        Z3_ast r = Z3_F2<&Z3_mk_bvslt>::exec(ctx_, z3::expr(a), z3::expr(b));
+        z3::expr(a).check_error();
+        return z3::expr(z3::expr(a).ctx(), r);
+      }
+      result_type operator()(bvtags::bvsle_tag, result_type a, result_type b) {
+        Z3_ast r = Z3_F2<&Z3_mk_bvsle>::exec(ctx_, z3::expr(a), z3::expr(b));
+        z3::expr(a).check_error();
+        return z3::expr(z3::expr(a).ctx(), r);
+      }
+      result_type operator()(bvtags::bvsgt_tag, result_type a, result_type b) {
+        Z3_ast r = Z3_F2<&Z3_mk_bvsgt>::exec(ctx_, z3::expr(a), z3::expr(b));
+        z3::expr(a).check_error();
+        return z3::expr(z3::expr(a).ctx(), r);
+      }
+      result_type operator()(bvtags::bvsge_tag, result_type a, result_type b) {
+        Z3_ast r = Z3_F2<&Z3_mk_bvsge>::exec(ctx_, z3::expr(a), z3::expr(b));
+        z3::expr(a).check_error();
+        return z3::expr(z3::expr(a).ctx(), r);
+      }
+      result_type operator()(bvtags::bvult_tag, result_type a, result_type b) {
+        Z3_ast r = Z3_F2<&Z3_mk_bvult>::exec(ctx_, z3::expr(a), z3::expr(b));
+        z3::expr(a).check_error();
+        return z3::expr(z3::expr(a).ctx(), r);
+      }
+      result_type operator()(bvtags::bvule_tag, result_type a, result_type b) {
+        Z3_ast r = Z3_F2<&Z3_mk_bvule>::exec(ctx_, z3::expr(a), z3::expr(b));
+        z3::expr(a).check_error();
+        return z3::expr(z3::expr(a).ctx(), r);
+      }
+      result_type operator()(bvtags::bvugt_tag, result_type a, result_type b) {
+        Z3_ast r = Z3_F2<&Z3_mk_bvugt>::exec(ctx_, z3::expr(a), z3::expr(b));
+        z3::expr(a).check_error();
+        return z3::expr(z3::expr(a).ctx(), r);
+      }
+      result_type operator()(bvtags::bvuge_tag, result_type a, result_type b) {
+        Z3_ast r = Z3_F2<&Z3_mk_bvuge>::exec(ctx_, z3::expr(a), z3::expr(b));
+        z3::expr(a).check_error();
+        return z3::expr(z3::expr(a).ctx(), r);
+      }
+      result_type operator()(bvtags::concat_tag, result_type a, result_type b) {
+        Z3_ast r = Z3_F2<&Z3_mk_concat>::exec(ctx_, z3::expr(a), z3::expr(b));
+        z3::expr(a).check_error();
+        return z3::expr(z3::expr(a).ctx(), r);
+      }
+      result_type operator()(bvtags::bvshl_tag, result_type a, result_type b) {
+        Z3_ast r = Z3_F2<&Z3_mk_bvshl>::exec(ctx_, z3::expr(a), z3::expr(b));
+        z3::expr(a).check_error();
+        return z3::expr(z3::expr(a).ctx(), r);
+      }
+      result_type operator()(bvtags::bvshr_tag, result_type a, result_type b) {
+        Z3_ast r = Z3_F2<&Z3_mk_bvlshr>::exec(ctx_, z3::expr(a), z3::expr(b));
+        z3::expr(a).check_error();
+        return z3::expr(z3::expr(a).ctx(), r);
+      }
+      result_type operator()(bvtags::bvashr_tag, result_type a, result_type b) {
+        Z3_ast r = Z3_F2<&Z3_mk_bvashr>::exec(ctx_, z3::expr(a), z3::expr(b));
+        z3::expr(a).check_error();
+        return z3::expr(z3::expr(a).ctx(), r);
+      }
+
       template <typename TagT>
       result_type operator()(TagT tag, result_type a, result_type b) {
-        namespace mpl = boost::mpl;
-        typedef mpl::map32<
-            mpl::pair<bvtags::bvand_tag, Z3_F2<&Z3_mk_bvand> >, mpl::pair<bvtags::bvnand_tag, Z3_F2<&Z3_mk_bvnand> >,
-            mpl::pair<bvtags::bvor_tag, Z3_F2<&Z3_mk_bvor> >, mpl::pair<bvtags::bvxor_tag, Z3_F2<&Z3_mk_bvxor> >,
-            mpl::pair<bvtags::bvnor_tag, Z3_F2<&Z3_mk_bvnor> >, mpl::pair<bvtags::bvxnor_tag, Z3_F2<&Z3_mk_bvxnor> >,
-            mpl::pair<bvtags::bvsub_tag, Z3_F2<&Z3_mk_bvsub> >, mpl::pair<bvtags::bvadd_tag, Z3_F2<&Z3_mk_bvadd> >,
-            mpl::pair<bvtags::bvmul_tag, Z3_F2<&Z3_mk_bvmul> >,
-            mpl::pair<bvtags::bvsle_tag, Z3_F2<&Z3_mk_bvsle> >
-            // #10
-            ,
-            mpl::pair<bvtags::bvslt_tag, Z3_F2<&Z3_mk_bvslt> >, mpl::pair<bvtags::bvsge_tag, Z3_F2<&Z3_mk_bvsge> >,
-            mpl::pair<bvtags::bvsgt_tag, Z3_F2<&Z3_mk_bvsgt> >, mpl::pair<bvtags::bvule_tag, Z3_F2<&Z3_mk_bvule> >,
-            mpl::pair<bvtags::bvult_tag, Z3_F2<&Z3_mk_bvult> >, mpl::pair<bvtags::bvuge_tag, Z3_F2<&Z3_mk_bvuge> >,
-            mpl::pair<bvtags::bvugt_tag, Z3_F2<&Z3_mk_bvugt> >,
-            mpl::pair<predtags::implies_tag, Z3_F2<&Z3_mk_implies> >, mpl::pair<predtags::xor_tag, Z3_F2<&Z3_mk_xor> >,
-            mpl::pair<predtags::and_tag, Z3_F2_MULTI_ARG<&Z3_mk_and> >
-            // #20
-            ,
-            mpl::pair<predtags::or_tag, Z3_F2_MULTI_ARG<&Z3_mk_or> >, mpl::pair<predtags::equal_tag, Z3_F2<&Z3_mk_eq> >,
-            mpl::pair<predtags::nequal_tag, Z3_F2_MULTI_ARG<&Z3_mk_distinct> >,
-            mpl::pair<predtags::distinct_tag, Z3_F2_MULTI_ARG<&Z3_mk_distinct> >,
-            mpl::pair<bvtags::concat_tag, Z3_F2<&Z3_mk_concat> >, mpl::pair<bvtags::bvudiv_tag, Z3_F2<&Z3_mk_bvudiv> >,
-            mpl::pair<bvtags::bvurem_tag, Z3_F2<&Z3_mk_bvurem> >, mpl::pair<bvtags::bvsdiv_tag, Z3_F2<&Z3_mk_bvsdiv> >,
-            mpl::pair<bvtags::bvsrem_tag, Z3_F2<&Z3_mk_bvsrem> >, mpl::pair<bvtags::bvshl_tag, Z3_F2<&Z3_mk_bvshl> >,
-            mpl::pair<bvtags::bvshr_tag, Z3_F2<&Z3_mk_bvlshr> >
-            // #30
-            ,
-            mpl::pair<bvtags::bvashr_tag, Z3_F2<&Z3_mk_bvashr> > >
-            BinaryOpcodeMap;
-
-        typedef typename mpl::has_key<BinaryOpcodeMap, TagT>::type _has_key;
-        if (_has_key::value) {
-          typedef typename mpl::eval_if<_has_key, mpl::at<BinaryOpcodeMap, TagT>,
-                                        mpl::identity<Z3_F2<Z3_mk_implies> > >::type opcode;
-          Z3_ast r = opcode::exec(ctx_, z3::expr(a), z3::expr(b));
-          z3::expr(a).check_error();
-          return z3::expr(z3::expr(a).ctx(), r);
-        } else {
-          std::cout << "unknown operator: " << tag << std::endl;
-          assert(false && "unknown operator");
-          return (*this)(predtags::false_tag(), boost::any());
-        }
+        assert(false && "unknown operator");
+        return (*this)(predtags::false_tag(), std::any());
       }
 
       ////////////////////////
       // Fallback operators //
       ////////////////////////
-      template <typename Tag, typename T>
+      /*template <typename Tag, typename T>
       result_type operator()(Tag const &, T const &) {
         assert(false);
         throw std::exception();
@@ -484,7 +583,7 @@ namespace metaSMT {
       result_type operator()(Tag const &, T1 const &, T2 const &, T3 const &) {
         assert(false);
         throw std::exception();
-      }
+      }*/
 
       void command(stack_push const &, unsigned howmany) {
         while (howmany > 0) {
@@ -504,6 +603,6 @@ namespace metaSMT {
 
   namespace features {
     template <>
-    struct supports<solver::Z3_Backend, features::stack_api> : boost::mpl::true_ {};
+    struct supports<solver::Z3_Backend, features::stack_api> : std::true_type {};
   }  // namespace features
 }  // namespace metaSMT

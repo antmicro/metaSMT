@@ -1,6 +1,6 @@
 #pragma once
 
-#include <boost/variant/variant.hpp>
+#include <variant>
 
 #include "Array.hpp"
 #include "BitVector.hpp"
@@ -8,6 +8,6 @@
 
 namespace metaSMT {
   namespace type {
-    typedef boost::variant<Boolean, BitVector, type::Array> any_type;
+    typedef std::variant<Boolean, BitVector, type::Array> any_type;
   }
 }  // namespace metaSMT

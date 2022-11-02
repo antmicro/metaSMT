@@ -2,9 +2,9 @@
 
 #include <yices.h>
 
-#include <boost/any.hpp>
-#include <boost/tuple/tuple.hpp>
+#include <any>
 #include <list>
+#include <tuple>
 
 #include "../result_wrapper.hpp"
 #include "../tags/Array.hpp"
@@ -22,7 +22,7 @@ namespace metaSMT {
 
     namespace detail {
 
-      struct yices_type_visitor : boost::static_visitor<type_t> {
+      struct yices_type_visitor {
         yices_type_visitor(context_t &ctx) : ctx(ctx) {}
 
         type_t operator()(type::Boolean const &) const { return yices_bool_type(); }
@@ -51,8 +51,8 @@ namespace metaSMT {
     template <bool RealIncreamentalMode = false>
     class Yices2Impl {
      private:
-      typedef boost::tuple<uint64_t, unsigned> bvuint_tuple;
-      typedef boost::tuple<int64_t, unsigned> bvsint_tuple;
+      typedef std::tuple<uint64_t, unsigned> bvuint_tuple;
+      typedef std::tuple<int64_t, unsigned> bvsint_tuple;
 
      public:
       typedef term_t result_type;
@@ -147,14 +147,14 @@ namespace metaSMT {
 
       // predtags
 
-      result_type operator()(predtags::var_tag const &, boost::any) {
+      result_type operator()(predtags::var_tag const &, std::any) {
         type_t bool_type = yices_bool_type();
         return yices_new_uninterpreted_term(bool_type);
       }
 
-      result_type operator()(predtags::false_tag, boost::any) { return yices_false(); }
+      result_type operator()(predtags::false_tag, std::any) { return yices_false(); }
 
-      result_type operator()(predtags::true_tag, boost::any) { return yices_true(); }
+      result_type operator()(predtags::true_tag, std::any) { return yices_true(); }
 
       result_type operator()(predtags::not_tag, result_type e) { return yices_not(e); }
 
@@ -203,9 +203,9 @@ namespace metaSMT {
       }
       // BVTAG
 
-      result_type operator()(bvtags::bit0_tag, boost::any) { return yices_bvconst_zero(1); }
+      result_type operator()(bvtags::bit0_tag, std::any) { return yices_bvconst_zero(1); }
 
-      result_type operator()(bvtags::bit1_tag, boost::any) { return yices_bvconst_one(1); }
+      result_type operator()(bvtags::bit1_tag, std::any) { return yices_bvconst_one(1); }
 
       result_type operator()(bvtags::bvnot_tag, result_type e) { return yices_bvnot(e); }
 
@@ -239,27 +239,27 @@ namespace metaSMT {
 
       result_type operator()(bvtags::bvudiv_tag, result_type a, result_type b) { return yices_bvdiv(a, b); }
 
-      result_type operator()(bvtags::bvuint_tag, boost::any arg) {
+      result_type operator()(bvtags::bvuint_tag, std::any arg) {
         uint64_t value;
         unsigned width;
-        boost::tie(value, width) = boost::any_cast<bvuint_tuple>(arg);
+        std::tie(value, width) = std::any_cast<bvuint_tuple>(arg);
         return yices_bvconst_uint64(width, value);
       }
 
-      result_type operator()(bvtags::bvsint_tag, boost::any arg) {
+      result_type operator()(bvtags::bvsint_tag, std::any arg) {
         int64_t value;
         unsigned width;
-        boost::tie(value, width) = boost::any_cast<bvsint_tuple>(arg);
+        std::tie(value, width) = std::any_cast<bvsint_tuple>(arg);
         return yices_bvconst_int64(width, value);
       }
 
-      result_type operator()(bvtags::bvbin_tag, boost::any arg) {
-        std::string val = boost::any_cast<std::string>(arg);
+      result_type operator()(bvtags::bvbin_tag, std::any arg) {
+        std::string val = std::any_cast<std::string>(arg);
         return throw_error(yices_parse_bvbin(val.c_str()));
       }
 
-      result_type operator()(bvtags::bvhex_tag, boost::any arg) {
-        std::string hex = boost::any_cast<std::string>(arg);
+      result_type operator()(bvtags::bvhex_tag, std::any arg) {
+        std::string hex = std::any_cast<std::string>(arg);
         return throw_error(yices_parse_bvhex(hex.c_str()));
       }
 
@@ -301,12 +301,12 @@ namespace metaSMT {
 
       result_type operator()(bvtags::bvashr_tag, result_type a, result_type b) { return yices_bvashr(a, b); }
 
-      result_type operator()(bvtags::var_tag const &var, boost::any) {
+      result_type operator()(bvtags::var_tag const &var, std::any) {
         type_t bv_type = yices_bv_type(var.width);
         return yices_new_uninterpreted_term(bv_type);
       }
 
-      result_type operator()(arraytags::array_var_tag const &var, boost::any const &) {
+      result_type operator()(arraytags::array_var_tag const &var, std::any const &) {
         if (var.id == 0) {
           throw std::runtime_error("uninitialized array used");
         }
@@ -325,14 +325,14 @@ namespace metaSMT {
         return throw_error(yices_update1(array, index, value));
       }
 
-      result_type operator()(uftags::function_var_tag const &var, boost::any) {
+      result_type operator()(uftags::function_var_tag const &var, std::any) {
         unsigned const num_args = var.args.size();
         type_t *yices_type = new type_t[num_args];
 
-        type_t result_sort = boost::apply_visitor(detail::yices_type_visitor(*ctx), var.result_type);
+        type_t result_sort = std::visit(detail::yices_type_visitor(*ctx), var.result_type);
 
         for (unsigned u = 0; u < num_args; ++u) {
-          yices_type[u] = boost::apply_visitor(detail::yices_type_visitor(*ctx), var.args[u]);
+          yices_type[u] = std::visit(detail::yices_type_visitor(*ctx), var.args[u]);
         }
         type_t function_type = yices_function_type(num_args, yices_type, result_sort);
         return yices_new_uninterpreted_term(function_type);
@@ -371,7 +371,7 @@ namespace metaSMT {
       };
 
       template <typename TagT>
-      result_type operator()(TagT, boost::any) {
+      result_type operator()(TagT, std::any) {
         assert(false && "unknown operator");
         return yices_false();
       }

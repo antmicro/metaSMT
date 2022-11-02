@@ -64,7 +64,7 @@ namespace metaSMT {
           _solution.resize(size);
           for (unsigned i = 0; i < size; ++i) {
             if (buf[i] == 2) {
-              _solution[i] = boost::logic::indeterminate;
+              _solution[i] = indeterminate;
             } else {
               _solution[i] = buf[i];
             }
@@ -79,11 +79,11 @@ namespace metaSMT {
         return result_wrapper(_solution[var.NodeReadIndex()]);
       }
 
-      result_type operator()(predtags::var_tag const&, boost::any) { return _manager.bddVar(); }
+      result_type operator()(predtags::var_tag const&, std::any) { return _manager.bddVar(); }
 
-      result_type operator()(predtags::false_tag, boost::any) { return _manager.bddZero(); }
+      result_type operator()(predtags::false_tag, std::any) { return _manager.bddZero(); }
 
-      result_type operator()(predtags::true_tag, boost::any) { return _manager.bddOne(); }
+      result_type operator()(predtags::true_tag, std::any) { return _manager.bddOne(); }
 
       result_type operator()(predtags::not_tag, result_type a) { return !a; }
 
@@ -114,7 +114,7 @@ namespace metaSMT {
       ////////////////////////
 
       template <typename TagT>
-      result_type operator()(TagT, boost::any) {
+      result_type operator()(TagT, std::any) {
         assert(false && "fallback op0 called");
         return _manager.bddZero();
       }
@@ -144,7 +144,7 @@ namespace metaSMT {
       Cudd _manager;
       BDD _assertions;
       BDD _assumptions;
-      std::vector<boost::logic::tribool> _solution;
+      std::vector<tribool> _solution;
     };
 
   }  // namespace solver

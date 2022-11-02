@@ -7,11 +7,7 @@
 extern "C" {
 #include <picosat.h>
 }
-#include <boost/any.hpp>
-#include <boost/foreach.hpp>
-#include <boost/fusion/sequence/intrinsic.hpp>
-#include <boost/fusion/support/is_sequence.hpp>
-#include <boost/variant.hpp>
+#include <any>
 #include <exception>
 #include <iostream>
 #include <vector>
@@ -43,7 +39,7 @@ namespace metaSMT {
       int toLit(result_type lit) { return lit.id; }
 
       void clause(std::vector<result_type> const& clause) {
-        BOOST_FOREACH (result_type const& lit, clause) picosat_add(toLit(lit));
+        for (result_type const& lit : clause) picosat_add(toLit(lit));
         picosat_add(0);
       }
 
@@ -91,7 +87,7 @@ namespace metaSMT {
 
   namespace features {
     template <>
-    struct supports<solver::PicoSAT, features::addclause_api> : boost::mpl::true_ {};
+    struct supports<solver::PicoSAT, features::addclause_api> : std::true_type {};
   }  // namespace features
 
 }  // namespace metaSMT

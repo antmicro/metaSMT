@@ -7,11 +7,7 @@
 extern "C" {
 #include <lglib.h>
 }
-#include <boost/any.hpp>
-#include <boost/foreach.hpp>
-#include <boost/fusion/sequence/intrinsic.hpp>
-#include <boost/fusion/support/is_sequence.hpp>
-#include <boost/variant.hpp>
+#include <any>
 #include <exception>
 #include <iostream>
 #include <vector>
@@ -35,7 +31,7 @@ namespace metaSMT {
       int toLit(result_type lit) { return lit.id; }
 
       void clause(std::vector<result_type> const& clause) {
-        BOOST_FOREACH (result_type const& lit, clause) {
+        for (result_type const& lit : clause) {
           add(toLit(lit));
         }
 
@@ -56,7 +52,7 @@ namespace metaSMT {
       }
 
       void flush_buffered_clauses() {
-        BOOST_FOREACH (int lit, m_buffered_clauses) {
+        for (int lit : m_buffered_clauses) {
           if (lit != 0) {
             lglfreeze(m_solver, lit);
           }
@@ -67,7 +63,7 @@ namespace metaSMT {
       }
 
       void flush_buffered_assumptions() {
-        BOOST_FOREACH (int lit, m_buffered_assume_clauses) {
+        for (int lit : m_buffered_assume_clauses) {
           lglfreeze(m_solver, lit);
           lglassume(m_solver, lit);
         }
@@ -116,7 +112,7 @@ namespace metaSMT {
 
   namespace features {
     template <>
-    struct supports<solver::Lingeling, features::addclause_api> : boost::mpl::true_ {};
+    struct supports<solver::Lingeling, features::addclause_api> : std::true_type {};
   }  // namespace features
 
 }  // namespace metaSMT

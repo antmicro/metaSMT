@@ -1,7 +1,6 @@
 #pragma once
 
-#include <boost/mpl/vector.hpp>
-#include <boost/variant.hpp>
+#include <variant>
 
 #include "attribute.hpp"
 
@@ -33,10 +32,7 @@ namespace metaSMT {
 #undef TAG
 
         // tag variant Cardinality_Tags
-        typedef boost::mpl::vector<lt_tag, le_tag, eq_tag, ge_tag, gt_tag>::type Cardinality_Tags;
-
-        typedef boost::make_variant_over<Cardinality_Tags>::type Cardinality_Tag;
-
+        using Cardinality_Tag = std::variant<lt_tag, le_tag, eq_tag, ge_tag, gt_tag>;
       }  // namespace tag
     }    // namespace cardinality
   }      // namespace logic

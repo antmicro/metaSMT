@@ -2,8 +2,7 @@
 #ifndef HEADER_metaSMT_TAG_QF_UF_HPP
 #define HEADER_metaSMT_TAG_QF_UF_HPP
 
-#include <boost/mpl/vector.hpp>
-#include <boost/variant.hpp>
+#include <variant>
 
 #include "../types/Types.hpp"
 #include "Logic.hpp"
@@ -33,9 +32,7 @@ namespace metaSMT {
 
 #undef PRINT
 
-        typedef boost::mpl::vector<nil, function_var_tag>::type QF_UF_Tags;
-
-        typedef boost::make_variant_over<QF_UF_Tags>::type QF_UF_Tag;
+        using QF_UF_Tag = std::variant<nil, function_var_tag>;
 
       }  // namespace tag
     }    // namespace QF_UF

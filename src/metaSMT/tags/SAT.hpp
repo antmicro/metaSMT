@@ -1,7 +1,6 @@
 #pragma once
 
-#include <boost/mpl/vector.hpp>
-#include <boost/variant.hpp>
+#include <variant>
 
 namespace metaSMT {
 
@@ -46,10 +45,7 @@ namespace metaSMT {
       };
 
       // tag variant SAT
-      typedef boost::mpl::vector<lit_tag, c_tag>::type SAT_Tags;
-
-      typedef boost::make_variant_over<SAT_Tags>::type SAT_Tag;
-
+      Using SAT_Tag = std::variant<lit_tag, c_tag>;
     }  // namespace tag
   }    // namespace SAT
 }  // namespace metaSMT
