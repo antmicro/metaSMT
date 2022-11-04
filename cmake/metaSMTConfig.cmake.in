@@ -5,7 +5,8 @@ set(metaSMT_FOUND 1)
 set(metaSMT_INCLUDE_DIR  @metaSMT_INCLUDES@)
 set(metaSMT_INCLUDE_DIRS ${metaSMT_INCLUDE_DIR})
 
-set(metaSMT_LIBRARIES @metaSMT_MLIBS@)
+set(metaSMT_LIBRARIES @metaSMT_LDLIBS@)
+set(metaSMT_LIB_PATHS @metaSMT_MLIBS@)
 
 get_filename_component(metaSMT_CONFIG_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
 include("${metaSMT_CONFIG_DIR}/metaSMT.cmake" )
