@@ -20,12 +20,14 @@ namespace metaSMT {
     InsertImplications(Context &ctx, std::map<unsigned, bool> &s, typename Context::result_type &c)
         : ctx(ctx), c(c), s(s) {}
 
+    /*
     template <typename Expr>
     void operator()(Expr e) const {
       bool si = new_variable();
       c = ctx(tag::and_tag{}, c, implies(si, e));
       s.insert(std::make_pair(s.size(), si));
     }
+    */
   }; /* detail */
 
   /**
