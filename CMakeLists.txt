@@ -173,8 +173,8 @@ if(metaSMT_USE_STP)
     STP
     PREFIX stp
     DEPENDS MiniSat
-    GIT_REPOSITORY https://github.com/stp/stp
-    GIT_TAG smtcomp2020
+    GIT_REPOSITORY https://github.com/antmicro/stp
+    GIT_TAG smtcomp2020-branch
     GIT_SHALLOW TRUE
     CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${PROJECT_BINARY_DIR}
                -DNOCRYPTOMINISAT=ON
