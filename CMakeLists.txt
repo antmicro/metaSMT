@@ -172,6 +172,7 @@ if(metaSMT_USE_STP)
   ExternalProject_Add(
     STP
     PREFIX stp
+    DEPENDS MiniSat
     GIT_REPOSITORY https://github.com/stp/stp
     GIT_TAG smtcomp2020
     GIT_SHALLOW TRUE
